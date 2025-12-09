@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adatacore - Task & Earnings Portal</title> 
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background-color: #4f46e5; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background-color: #1f2937; }
+        .dark ::-webkit-scrollbar-track { background-color: #1f2937; }
+
+        /* Transitions */
+        body { transition: background-color 2.5s ease, color 2.5s ease; }
+        .sidebar-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* Animations */
+        .card-hover-animation { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-hover-animation:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2), 0 4px 6px -2px rgba(139, 92, 246, 0.1); }
+
+        /* View transition */
+        .view { animation: fadeIn 0.4s ease-out; min-height: calc(100vh - 4rem); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Auth Box */
+        .auth-box { background: linear-gradient(145deg, #ffffff, #f3f4f6); border: 1px solid #e5e7eb; }
+        .dark .auth-box { background: linear-gradient(145deg, #1f2937, #111827); border: 1px solid #374151; }
+
+        /* Theme Toggle */
+        .theme-toggle-btn { overflow: hidden; position: relative; background-color: #60a5fa; transition: background-color 2.5s ease; }
+        .dark .theme-toggle-btn { background-color: #1e293b; }
+
+        .sun-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: transform 2.5s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 2.5s ease; }
+        .moon-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, 150%); transition: transform 2.5s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 2.5s ease; opacity: 0; }
+        .dark .sun-icon { transform: translate(-50%, 150%); opacity: 0; }
+        .dark .moon-icon { transform: translate(-50%, -50%); opacity: 1; }
+        
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0; transition: opacity 2.5s ease 0.2s; }
+        .dark .star { opacity: 1; }
+
+        .dropdown-enter { animation: slideDown 0.2s ease-out forwards; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* SVG Container Fix */
+        .svg-logo-container svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            overflow: visible; 
+        }
+    </style>
+</head>
+<body class="flex min-h-screen relative overflow-x-hidden bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-e5e7eb transition-colors duration-[2500ms]">
+
+    <svg width="0" height="0" style="position: absolute; visibility: hidden;">
+        <defs>
+            <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#3b82f6; stop-opacity:1" />
+                <stop offset="50%" style="stop-color:#a855f7; stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#ec4899; stop-opacity:1" />
+            </linearGradient>
+            <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+        </defs>
+    </svg>
+
+    <aside id="sidebar" class="sidebar-transition bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0 w-64 p-4 flex-col z-30 hidden flex-shrink-0">
+        <div class="mb-8 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white tracking-wider flex items-center">
+                <div class="w-9 h-9 mr-2 flex-shrink-0">
+                    <svg class="w-full h-full" viewBox="0 0 400 380" xmlns="http://www.w3.org/2000/svg">
+                        <g transform="translate(200, 190)">
+                            <g fill="none" stroke="url(#mainGradient)" stroke-width="25"> 
+                                <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(30)" />
+                                <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(90)" />
+                                <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(150)" />
+                            </g>
+                            <g fill="url(#mainGradient)">
+                                <circle cx="0" cy="-160" r="28" /> <circle cx="0" cy="160" r="28" />
+                                <circle cx="-139" cy="-80" r="28" /> <circle cx="139" cy="-80" r="28" />
+                                <circle cx="-139" cy="80" r="28" /> <circle cx="139" cy="80" r="28" />
+                            </g>
+                            <circle cx="0" cy="0" r="60" fill="none" stroke="#ec4899" stroke-width="15" />
+                            <g fill="#ec4899" transform="translate(-30, -30)">
+                                <rect x="26" y="18" width="8" height="24" rx="4" fill="#a855f7" />
+                                <rect x="14" y="24" width="8" height="12" rx="4" fill="#3b82f6" />
+                                <rect x="38" y="12" width="8" height="36" rx="4" fill="#ec4899" />
+                                <rect x="50" y="24" width="8" height="12" rx="4" fill="#ec4899" />
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+                <span class="logo-text"><span class="text-violet-600 dark:text-violet-400">Adata</span>core</span>
+            </h1>
+            <button id="sidebar-toggle-close" class="lg:hidden text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition duration-150">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <nav class="flex-grow space-y-3">
+            <a href="#" id="nav-dashboard" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 border border-transparent hover:border-violet-500/30" onclick="window.navigateTo('dashboard-view')">
+                <span class="font-medium ml-2">Dashboard</span>
+            </a>
+            <a href="#" id="nav-tasks" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border border-transparent hover:border-amber-500/30" onclick="window.navigateTo('tasks-view')">
+                <span class="font-medium ml-2">Active Contracts</span>
+            </a>
+            <a href="#" id="nav-payout" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-500/30" onclick="window.navigateTo('payout-view')">
+                <span class="font-medium ml-2">Earnings</span>
+            </a>
+            <a href="#" id="nav-history" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20 border border-transparent hover:border-green-500/30" onclick="window.navigateTo('history-view')">
+                <span class="font-medium ml-2">Payout History</span>
+            </a>
+            <a href="#" id="nav-quality" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-pink-500/10 text-pink-700 dark:text-pink-300 hover:bg-pink-500/20 border border-transparent hover:border-pink-500/30 lg:hidden" onclick="window.navigateTo('quality-view')">
+                <span class="font-medium ml-2">My Quality</span>
+            </a>
+             <a href="#" id="nav-profile" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 border border-transparent hover:border-blue-500/30 lg:hidden" onclick="window.navigateTo('profile-view')">
+                <span class="font-medium ml-2">My Profile</span>
+            </a>
+        </nav>
+        
+        <div class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+             <div class="flex items-center p-2 rounded-xl bg-gray-100 dark:bg-gray-800/50">
+                <div class="flex-grow">
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">Guest User</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">ID: #2024</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main id="main-content" class="flex-grow flex flex-col min-w-0 transition-all duration-300">
+        
+        <div id="top-right-controls" class="absolute top-4 right-4 z-50 flex items-center space-x-3 hidden">
+            <button id="theme-toggle-btn" class="theme-toggle-btn w-10 h-10 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 focus:outline-none">
+                <div class="star" style="top: 20%; left: 20%; width: 2px; height: 2px;"></div>
+                <div class="star" style="top: 30%; left: 70%; width: 3px; height: 3px;"></div>
+                <div class="star" style="top: 70%; left: 40%; width: 2px; height: 2px;"></div>
+                <svg class="sun-icon w-6 h-6 text-yellow-300" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg class="moon-icon w-5 h-5 text-gray-200" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+            <button id="three-dot-btn" class="p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700">
+                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+            </button>
+            <div id="three-dot-dropdown" class="hidden absolute right-0 mt-12 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+                <div class="py-1">
+                    <button onclick="window.handleLogout()" class="flex w-full items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <header id="general-header" class="hidden w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 sticky top-0 z-10 shadow-md">
+            <div class="flex justify-between items-center max-w-7xl mx-auto w-full">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white tracking-wider cursor-pointer flex items-center" onclick="window.navigateTo('landing-view')">
+                    <span class="logo-text text-3xl"><span class="text-violet-600 dark:text-violet-400">Adata</span>core</span>
+                </h1>
+                <nav class="space-x-4">
+                    <button class="text-gray-600 dark:text-gray-300 hover:text-gray-900" onclick="window.navigateTo('auth-view')">Login</button>
+                </nav>
+            </div>
+        </header>
+
+         <header id="mobile-dashboard-header" class="hidden lg:hidden w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 sticky top-0 z-10 justify-between items-center">
+             <h1 class="text-2xl font-bold text-gray-900 dark:text-white tracking-wider flex items-center">
+                <div class="w-12 h-12 mr-2 flex-shrink-0">
+                    <svg class="w-full h-full" viewBox="0 0 400 380" xmlns="http://www.w3.org/2000/svg">
+                        <g transform="translate(200, 190)">
+                            <g fill="none" stroke="url(#mainGradient)" stroke-width="25"> 
+                                <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(30)" />
+                                <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(90)" />
+                                <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(150)" />
+                            </g>
+                            <g fill="url(#mainGradient)">
+                                <circle cx="0" cy="-160" r="28" /> <circle cx="0" cy="160" r="28" />
+                                <circle cx="-139" cy="-80" r="28" /> <circle cx="139" cy="-80" r="28" />
+                                <circle cx="-139" cy="80" r="28" /> <circle cx="139" cy="80" r="28" />
+                            </g>
+                            <circle cx="0" cy="0" r="60" fill="none" stroke="#ec4899" stroke-width="15" />
+                            <g fill="#ec4899" transform="translate(-30, -30)">
+                                <rect x="26" y="18" width="8" height="24" rx="4" fill="#a855f7" />
+                                <rect x="14" y="24" width="8" height="12" rx="4" fill="#3b82f6" />
+                                <rect x="38" y="12" width="8" height="36" rx="4" fill="#ec4899" />
+                                <rect x="50" y="24" width="8" height="12" rx="4" fill="#ec4899" />
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+                <span class="logo-text"><span class="text-violet-600 dark:text-violet-400">Adata</span>core</span>
+            </h1>
+            <div class="flex items-center space-x-3">
+                <button id="sidebar-toggle-open" class="text-gray-500 dark:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <div id="content-area" class="p-0 md:p-0 flex-grow">
+            
+            <div id="landing-view" class="view flex flex-col items-center justify-center text-center p-8 bg-gradient-to-b from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800">
+                 <div class="max-w-4xl mx-auto py-20 flex flex-col items-center">
+                    
+                    <div class="w-60 h-auto mb-6 animate-float drop-shadow-2xl">
+                        <svg class="w-full h-full" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+                            <g transform="translate(200, 180)">
+                                <g fill="none" stroke="url(#mainGradient)" stroke-width="22" opacity="0.9">
+                                    <ellipse cx="0" cy="0" rx="60" ry="140" transform="rotate(30)" />
+                                    <ellipse cx="0" cy="0" rx="60" ry="140" transform="rotate(90)" />
+                                    <ellipse cx="0" cy="0" rx="60" ry="140" transform="rotate(150)" />
+                                </g>
+                                <g fill="url(#mainGradient)">
+                                    <circle cx="0" cy="-140" r="18" /> <circle cx="0" cy="140" r="18" />
+                                    <circle cx="-121" cy="-70" r="18" /> <circle cx="121" cy="-70" r="18" />
+                                    <circle cx="-121" cy="70" r="18" /> <circle cx="121" cy="70" r="18" />
+                                </g>
+                                <circle cx="0" cy="0" r="50" fill="none" stroke="#ec4899" stroke-width="10" />
+                                <g fill="#ec4899" transform="translate(-25, -25)">
+                                    <rect x="22" y="15" width="6" height="20" rx="3" fill="#a855f7" />
+                                    <rect x="12" y="20" width="6" height="10" rx="3" fill="#3b82f6" />
+                                    <rect x="32" y="10" width="6" height="30" rx="3" fill="#ec4899" />
+                                    <rect x="42" y="20" width="6" height="10" rx="3" fill="#ec4899" />
+                                </g>
+                            </g>
+                            <text x="200" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="80" letter-spacing="-2" fill="url(#mainGradient)" style="filter: url(#glow);">
+                                Adatacore
+                            </text>
+                        </svg>
+                    </div>
+
+                    <h1 class="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
+                        Unlock Your Potential with <span class="text-violet-600 dark:text-violet-500">Adatacore</span>
+                    </h1>
+                    <div class="space-x-4">
+                        <button class="px-8 py-4 bg-violet-600 text-white font-bold text-lg rounded-xl hover:bg-violet-700 transition" onclick="window.navigateTo('auth-view')">
+                            Start Earning Now
+                        </button>
+                        <button class="px-8 py-4 border border-gray-400 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-lg rounded-xl hover:bg-gray-200 dark:hover:bg-gray-800 transition duration-300" onclick="window.navigateTo('auth-view')">
+                            Log In
+                        </button>
+                    </div>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mt-16 text-left">
+                    <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl border-t-4 border-cyan-500 hover:bg-gray-50 dark:hover:bg-gray-750 transition shadow-sm">
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Fast Payouts</h3>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm">Receive your earnings promptly with multiple payout options.</p>
+                    </div>
+                    <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl border-t-4 border-pink-500 hover:bg-gray-50 dark:hover:bg-gray-750 transition shadow-sm">
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Quality Feedback</h3>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm">Grow your skills with detailed and constructive feedback.</p>
+                    </div>
+                    <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl border-t-4 border-green-500 hover:bg-gray-50 dark:hover:bg-gray-750 transition shadow-sm">
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Global Access</h3>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm">A vast array of tasks available 24/7, no matter where you are.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="auth-view" class="view hidden flex items-center justify-center p-8 min-h-screen bg-gray-100 dark:bg-gray-900">
+                <div class="auth-box w-full max-w-md p-8 md:p-10 rounded-2xl shadow-2xl">
+                    <div class="text-center mb-8">
+                        <h2 id="auth-title" class="text-3xl font-bold text-gray-900 dark:text-white tracking-wide">Welcome Back</h2>
+                        <p class="text-gray-600 dark:text-gray-400 mt-2">Please log in to your account or register below.</p>
+                    </div>
+                    
+                    <form id="login-form" onsubmit="window.handleLogin(event)" class="space-y-4">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                            <input type="email" id="login-email" required class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white" placeholder="guest@adatacore.com">
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
+                            <input type="password" id="login-password" required class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white">
+                        </div>
+                        <div id="login-message" class="text-red-500 dark:text-red-400 text-sm hidden"></div>
+                        <button type="submit" class="w-full py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition">Log In</button>
+                    </form>
+                    
+                    <form id="register-form" onsubmit="window.handleRegister(event)" class="space-y-4 hidden">
+                         <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                            <input type="email" id="register-email" required class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg">
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
+                            <input type="password" id="register-password" required class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg">
+                        </div>
+                         <div id="register-message" class="hidden"></div>
+                        <button type="submit" class="w-full py-3 bg-pink-600 text-white font-semibold rounded-xl hover:bg-pink-700 transition">Register</button>
+                    </form>
+                    
+                     <div class="mt-6 text-center border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <p id="auth-toggle-text" class="text-gray-600 dark:text-gray-400 text-sm">Don't have an account? 
+                            <button class="text-violet-600 dark:text-violet-400 hover:text-violet-500 font-medium" onclick="window.toggleAuthForm()">Sign Up</button>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboard-view" class="view hidden p-4 md:p-8">
+                <div class="bg-white dark:bg-gray-800 p-6 md:p-10 rounded-2xl mb-8 shadow-xl border border-gray-200 dark:border-gray-700/50 flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <p class="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back, <span class="text-violet-600 dark:text-violet-400" id="welcome-username">Tasker!</span></p>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm md:text-base">You have 3 high-priority tasks waiting for review.</p>
+                    </div>
+                    <button class="mt-4 lg:mt-0 px-6 py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 shadow-lg shadow-violet-500/30 transition duration-300 transform hover:scale-[1.03] active:scale-[0.98]">
+                        Start Next Task
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                      <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-cyan-500 cursor-pointer" onclick="window.navigateTo('payout-view')">
+                        <svg class="w-8 h-8 text-cyan-600 dark:text-cyan-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V9m0 3v2m0 4.5V17m-6 0h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">$432.27</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Pending Payouts</p>
+                    </div>
+                    <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-pink-500 cursor-pointer" onclick="window.navigateTo('quality-view')">
+                        <svg class="w-8 h-8 text-pink-600 dark:text-pink-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.104A9.998 9.998 0 0012 4.54l-1.07-1.782A1 1 0 009.28 2.25l-2.022.45c-.328.074-.633.228-.908.455A9.957 9.957 0 004.54 12c0 5.488 4.093 9.953 9.475 10.74l1.07 1.782a1 1 0 001.782 0l1.07-1.782c5.382-.787 9.475-5.252 9.475-10.74a9.998 9.998 0 00-4.104-5.618z"></path></svg>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">94%</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Average Quality Score</p>
+                    </div>
+                    <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-green-500 cursor-pointer" onclick="window.navigateTo('history-view')">
+                        <svg class="w-8 h-8 text-green-600 dark:text-green-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">$4,850.15</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Lifetime Earnings</p>
+                    </div>
+                    <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-violet-500 cursor-pointer" onclick="window.navigateTo('profile-view')">
+                        <svg class="w-8 h-8 text-violet-600 dark:text-violet-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">Profile</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">View Details</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700/50 card-hover-animation">
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Active Project: Image Segmentation (Advanced)</h2>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4">
+                            <div id="progress-bar" class="bg-violet-600 dark:bg-violet-500 h-2.5 rounded-full transition-all duration-1000 ease-out" style="width: 75%" data-progress="75"></div>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                            <span>75% Completed</span>
+                            <span>Estimated Pay: $15.50 / hour</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="payout-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold dark:text-white">Payouts</h1></div>
+            <div id="quality-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold dark:text-white">Quality</h1></div>
+            <div id="history-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold dark:text-white">History</h1></div>
+            <div id="tasks-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold dark:text-white">Tasks</h1></div>
+            <div id="profile-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold dark:text-white">Profile</h1></div>
+
+        </div>
+    </main>
+
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-violet-500">
+            <h3 id="modal-title" class="text-xl font-bold dark:text-white">Notice</h3>
+            <p id="modal-content" class="dark:text-gray-400 my-4"></p>
+            <button class="px-4 py-2 bg-violet-600 text-white rounded-lg" onclick="document.getElementById('message-modal').classList.add('hidden')">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL CONSTANTS ---
+        const ADMIN_EMAIL = 'admin@adatacore.com';
+        const ADMIN_PASSWORD = 'admin123';
+        const SESSION_KEY = 'adatacore_auth';
+        const USERS_KEY = 'adatacore_users';
+        const THEME_KEY = 'taskflow_theme';
+
+        let users = {};
+
+        // --- AUTHENTICATION FUNCTIONS ---
+
+        function loadLocalUsersMock() {
+            const savedUsers = localStorage.getItem(USERS_KEY);
+            if (savedUsers) {
+                users = JSON.parse(savedUsers);
+            } else {
+                users = {};
+            }
+            if (!users[ADMIN_EMAIL]) {
+                users[ADMIN_EMAIL] = { password: ADMIN_PASSWORD, role: 'admin' };
+                localStorage.setItem(USERS_KEY, JSON.stringify(users)); 
+            }
+        }
+
+        function updateProfileUI(email) {
+            if (!email) return;
+            const username = email.split('@')[0].toUpperCase();
+            
+            const welcomeUser = document.getElementById('welcome-username');
+            if (welcomeUser) welcomeUser.textContent = username + '!';
+        }
+
+        window.handleLogin = async (event) => {
+            event.preventDefault();
+            const emailInput = document.getElementById('login-email');
+            const passwordInput = document.getElementById('login-password');
+            const messageDiv = document.getElementById('login-message');
+            
+            const email = emailInput.value.toLowerCase();
+            const password = passwordInput.value;
+            
+            if (messageDiv) messageDiv.classList.add('hidden');
+
+            const mockUser = users[email];
+            
+            if (mockUser && mockUser.password === password) {
+                    localStorage.setItem(SESSION_KEY, 'authenticated');
+                    updateProfileUI(email);
+                    window.navigateTo('dashboard-view');
+                    return;
+            } else {
+                    if (messageDiv) {
+                        messageDiv.textContent = `Login failed. Invalid email or password.`;
+                        messageDiv.classList.remove('hidden');
+                    }
+            }
+        };
+
+        window.handleRegister = async (event) => {
+            event.preventDefault();
+            const emailInput = document.getElementById('register-email');
+            const passwordInput = document.getElementById('register-password');
+            const messageDiv = document.getElementById('register-message');
+            
+            const email = emailInput.value.toLowerCase();
+            const password = passwordInput.value;
+            
+            if (messageDiv) messageDiv.classList.add('hidden');
+
+            if (password.length < 6) {
+                if (messageDiv) {
+                    messageDiv.textContent = 'Password must be at least 6 characters long.';
+                    messageDiv.classList.remove('hidden');
+                }
+                return;
+            }
+            
+            if (users[email]) {
+                if (messageDiv) {
+                    messageDiv.textContent = 'Account already exists. Please log in.';
+                    messageDiv.classList.remove('hidden');
+                }
+                return;
+            }
+            
+            // Mock Registration
+            users[email] = { password: password, role: 'user' };
+            localStorage.setItem(USERS_KEY, JSON.stringify(users)); 
+            window.alertMessage('Registration Successful', 'Account created locally. Please log in.', 'var(--accent-green)');
+            window.toggleAuthForm(true);
+        };
+
+        window.toggleAuthForm = function(showLogin = true) {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const authTitle = document.getElementById('auth-title');
+            const toggleText = document.getElementById('auth-toggle-text');
+            const loginMsg = document.getElementById('login-message');
+            const registerMsg = document.getElementById('register-message');
+
+            if (showLogin) {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                authTitle.textContent = 'Welcome Back';
+                toggleText.innerHTML = `Don't have an account? <button class="text-violet-600 dark:text-violet-400 hover:text-violet-500 font-medium" onclick="window.toggleAuthForm(false)">Sign Up</button>`;
+                if (loginMsg) loginMsg.classList.add('hidden');
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                authTitle.textContent = 'Create Account';
+                toggleText.innerHTML = `Already have an account? <button class="text-violet-600 dark:text-violet-400 hover:text-violet-500 font-medium" onclick="window.toggleAuthForm(true)">Log In</button>`;
+                if (registerMsg) registerMsg.classList.add('hidden');
+            }
+        }
+
+        // --- GENERAL SITE FUNCTIONS ---
+
+        window.alertMessage = (title, content, color = 'var(--accent-purple)') => {
+            const modal = document.getElementById('message-modal');
+            if (!modal) return;
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').textContent = content;
+            modal.querySelector('div').style.borderTopColor = color;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.navigateTo = (viewId) => {
+            const isLoggedIn = localStorage.getItem(SESSION_KEY) === 'authenticated';
+
+            if (isLoggedIn && (viewId === 'auth-view')) {
+                viewId = 'dashboard-view';
+            }
+
+            const views = document.querySelectorAll('.view');
+            const sidebar = document.getElementById('sidebar');
+            const generalHeader = document.getElementById('general-header');
+            const mobileHeader = document.getElementById('mobile-dashboard-header');
+            const topRightControls = document.getElementById('top-right-controls');
+            
+            if (viewId === 'dashboard-view' || viewId === 'tasks-view' || viewId === 'profile-view' || viewId === 'payout-view' || viewId === 'quality-view' || viewId === 'history-view') {
+                // Protected Views
+                if (!isLoggedIn) {
+                    window.navigateTo('landing-view');
+                    return;
+                }
+                
+                if (sidebar) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('flex', 'lg:flex'); 
+                }
+                
+                if (topRightControls) topRightControls.classList.remove('hidden');
+
+                if (window.innerWidth >= 1024) {
+                    if (mobileHeader) mobileHeader.classList.add('hidden');
+                } else {
+                     if (mobileHeader) {
+                        mobileHeader.classList.remove('hidden');
+                        mobileHeader.classList.add('flex');
+                     }
+                }
+
+                if (generalHeader) generalHeader.classList.add('hidden');
+                updateSidebarActiveState(viewId);
+                
+            } else {
+                // Public Views
+                if (sidebar) {
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('flex', 'lg:flex'); 
+                }
+                
+                if (topRightControls) topRightControls.classList.add('hidden');
+
+                if (mobileHeader) mobileHeader.classList.add('hidden');
+                if (generalHeader) generalHeader.classList.remove('hidden');
+            }
+            
+            // Toggle Views
+            views.forEach(view => view.classList.add('hidden'));
+            const targetView = document.getElementById(viewId);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+                if(viewId === 'landing-view' || viewId === 'auth-view') {
+                    targetView.classList.add('flex', 'flex-col', 'items-center', 'justify-center');
+                } else {
+                    targetView.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
+                }
+                
+                targetView.style.opacity = 0;
+                setTimeout(() => targetView.style.opacity = 1, 50); 
+                targetView.classList.add('view');
+            }
+        };
+
+        window.showView = window.navigateTo;
+
+        window.handleLogout = async () => {
+            localStorage.removeItem(SESSION_KEY);
+            window.alertMessage('Logged Out', 'You have been successfully logged out.', 'var(--accent-purple)');
+            const dropdown = document.getElementById('three-dot-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            setTimeout(() => {
+                window.navigateTo('landing-view');
+            }, 300);
+        };
+
+        function updateSidebarActiveState(viewId) {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.classList.remove('bg-opacity-30', 'border-opacity-50', 'shadow-md');
+                link.classList.add('bg-opacity-10'); 
+                link.classList.remove('ring-1', 'ring-white/20');
+            });
+            
+            const viewMap = {
+                'dashboard-view': 'nav-dashboard',
+                'tasks-view': 'nav-tasks',
+                'payout-view': 'nav-payout',
+                'history-view': 'nav-history',
+                'quality-view': 'nav-quality',
+                'profile-view': 'nav-profile'
+            };
+
+            const activeNavId = viewMap[viewId];
+            if (activeNavId) {
+                const activeLink = document.getElementById(activeNavId);
+                if (activeLink) {
+                    activeLink.classList.remove('bg-opacity-10');
+                    activeLink.classList.add('bg-opacity-30', 'shadow-md', 'ring-1', 'ring-white/20');
+                }
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem(THEME_KEY, 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem(THEME_KEY, 'dark');
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadLocalUsersMock();
+            
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', toggleTheme);
+            }
+
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar && localStorage.getItem(SESSION_KEY) === 'authenticated') {
+                setTimeout(() => progressBar.style.width = '75%', 100);
+            }
+
+            if (localStorage.getItem(SESSION_KEY) === 'authenticated') {
+                updateProfileUI(ADMIN_EMAIL);
+                window.navigateTo('dashboard-view');
+            } else {
+                window.navigateTo('landing-view');
+            }
+
+            const threeDotBtn = document.getElementById('three-dot-btn');
+            const threeDotDropdown = document.getElementById('three-dot-dropdown');
+
+            if (threeDotBtn && threeDotDropdown) {
+                threeDotBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    threeDotDropdown.classList.toggle('hidden');
+                    if (!threeDotDropdown.classList.contains('hidden')) {
+                        threeDotDropdown.classList.add('dropdown-enter');
+                    } else {
+                        threeDotDropdown.classList.remove('dropdown-enter');
+                    }
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!threeDotDropdown.classList.contains('hidden') && !threeDotDropdown.contains(e.target) && e.target !== threeDotBtn) {
+                        threeDotDropdown.classList.add('hidden');
+                    }
+                });
+                
+                threeDotDropdown.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        threeDotDropdown.classList.add('hidden');
+                    });
+                });
+            }
+
+            const toggleOpenBtn = document.getElementById('sidebar-toggle-open');
+            const toggleCloseBtn = document.getElementById('sidebar-toggle-close');
+            const sidebar = document.getElementById('sidebar');
+
+            if (toggleOpenBtn) {
+                    toggleOpenBtn.addEventListener('click', () => {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('flex', 'absolute', 'z-50', 'w-64');
+                });
+            }
+            if (toggleCloseBtn) {
+                toggleCloseBtn.addEventListener('click', () => {
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('flex', 'absolute', 'z-50');
+                });
+            }
+            
+            window.addEventListener('resize', () => {
+                const isLoggedIn = localStorage.getItem(SESSION_KEY) === 'authenticated';
+                if (!isLoggedIn) return;
+
+                if (window.innerWidth >= 1024) {
+                    if (document.getElementById('mobile-dashboard-header')) document.getElementById('mobile-dashboard-header').classList.add('hidden');
+                    sidebar.classList.remove('hidden', 'absolute', 'z-50');
+                    sidebar.classList.add('lg:flex');
+                } else {
+                        if (document.getElementById('mobile-dashboard-header')) {
+                        document.getElementById('mobile-dashboard-header').classList.remove('hidden');
+                        document.getElementById('mobile-dashboard-header').classList.add('flex');
+                        }
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('lg:flex');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
