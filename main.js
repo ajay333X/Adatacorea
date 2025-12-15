@@ -82,24 +82,37 @@ window.navigateTo = function (viewId) {
 
 /* ================= USER UI ================= */
 function syncUserToUI() {
-  if (!clerk?.isSignedIn) return;
+  if (!clerk || !clerk.isSignedIn) return;
 
   const user = clerk.user;
-  const email = user.primaryEmailAddress?.emailAddress || "";
-  const name = user.username || user.firstName || email.split("@")[0];
+  const email = user.primaryEmailAddress
+    ? user.primaryEmailAddress.emailAddress
+    : "";
 
-  document.getElementById("welcome-username")?.textContent = name;
-  document.getElementById("profile-username")?.textContent = name;
-  document.getElementById("profile-email-input")?.value = email;
-  document.getElementById("menu-username")?.textContent = name;
-  document.getElementById("menu-email")?.textContent = email;
+  const name =
+    user.username ||
+    user.firstName ||
+    (email ? email.split("@")[0] : "User");
 
-  if (user.imageUrl) {
-    document.getElementById("profile-avatar")?.setAttribute("src", user.imageUrl);
-  }
+  const welcome = document.getElementById("welcome-username");
+  if (welcome) welcome.textContent = name;
 
-  loadUserTaskState();
+  const profileName = document.getElementById("profile-username");
+  if (profileName) profileName.textContent = name;
+
+  const profileEmail = document.getElementById("profile-email-input");
+  if (profileEmail) profileEmail.value = email;
+
+  const avatar = document.getElementById("profile-avatar");
+  if (avatar && user.imageUrl) avatar.src = user.imageUrl;
+
+  const menuUser = document.getElementById("menu-username");
+  if (menuUser) menuUser.textContent = name;
+
+  const menuEmail = document.getElementById("menu-email");
+  if (menuEmail) menuEmail.textContent = email;
 }
+
 
 /* ================= LOGOUT ================= */
 window.handleLogout = async () => {
