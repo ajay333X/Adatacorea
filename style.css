@@ -1,0 +1,84 @@
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background-color: #4f46e5; border-radius: 4px; }
+::-webkit-scrollbar-track { background-color: #1f2937; }
+.dark ::-webkit-scrollbar-track { background-color: #1f2937; }
+
+/* Transitions */
+body { transition: background-color 2.5s ease, color 2.5s ease; }
+.sidebar-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Animations */
+.card-hover-animation { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card-hover-animation:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2),
+                0 4px 6px -2px rgba(139, 92, 246, 0.1);
+}
+
+/* View transition */
+.view { animation: fadeIn 0.4s ease-out; min-height: calc(100vh - 4rem); }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Auth Box */
+.auth-box {
+    background: linear-gradient(145deg, #ffffff, #f3f4f6);
+    border: 1px solid #e5e7eb;
+}
+.dark .auth-box {
+    background: linear-gradient(145deg, #1f2937, #111827);
+    border: 1px solid #374151;
+}
+
+/* Theme Toggle */
+.theme-toggle-btn {
+    overflow: hidden;
+    position: relative;
+    background-color: #60a5fa;
+    transition: background-color 2.5s ease;
+}
+.dark .theme-toggle-btn { background-color: #1e293b; }
+
+.sun-icon {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform 2.5s cubic-bezier(0.4, 0.0, 0.2, 1),
+                opacity 2.5s ease;
+}
+.moon-icon {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, 150%);
+    transition: transform 2.5s cubic-bezier(0.4, 0.0, 0.2, 1),
+                opacity 2.5s ease;
+    opacity: 0;
+}
+.dark .sun-icon { transform: translate(-50%, 150%); opacity: 0; }
+.dark .moon-icon { transform: translate(-50%, -50%); opacity: 1; }
+
+.star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 2.5s ease 0.2s;
+}
+.dark .star { opacity: 1; }
+
+.dropdown-enter { animation: slideDown 0.2s ease-out forwards; }
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* SVG Container Fix */
+.svg-logo-container svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible; /* Allows the glow to bleed out */
+}
