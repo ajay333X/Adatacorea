@@ -24,9 +24,14 @@ async function initClerk() {
 
 /* ================= LOGOS ================= */
 function renderLogos() {
-  document.getElementById("sidebar-logo-icon")?.innerHTML = LOGO_ICON_SVG;
-  document.getElementById("mobile-logo-icon")?.innerHTML = LOGO_ICON_SVG;
-  document.getElementById("landing-logo-large")?.innerHTML = LOGO_FULL_SVG;
+  const sidebarLogo = document.getElementById("sidebar-logo-icon");
+  if (sidebarLogo) sidebarLogo.innerHTML = LOGO_ICON_SVG;
+
+  const mobileLogo = document.getElementById("mobile-logo-icon");
+  if (mobileLogo) mobileLogo.innerHTML = LOGO_ICON_SVG;
+
+  const landingLogo = document.getElementById("landing-logo-large");
+  if (landingLogo) landingLogo.innerHTML = LOGO_FULL_SVG;
 }
 
 /* ================= AUTH PAGE ================= */
