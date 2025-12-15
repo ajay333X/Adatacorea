@@ -24,290 +24,200 @@ async function initClerk() {
 
 /* ================= LOGOS ================= */
 function renderLogos() {
-  const sidebarLogo = document.getElementById("sidebar-logo-icon");
-  if (sidebarLogo) sidebarLogo.innerHTML = LOGO_ICON_SVG;
-
-  const mobileLogo = document.getElementById("mobile-logo-icon");
-  if (mobileLogo) mobileLogo.innerHTML = LOGO_ICON_SVG;
-
-  const landingLogo = document.getElementById("landing-logo-large");
-  if (landingLogo) landingLogo.innerHTML = LOGO_FULL_SVG;
+  document.getElementById("sidebar-logo-icon")?.innerHTML = LOGO_ICON_SVG;
+  document.getElementById("mobile-logo-icon")?.innerHTML = LOGO_ICON_SVG;
+  document.getElementById("landing-logo-large")?.innerHTML = LOGO_FULL_SVG;
 }
 
-/* ================= PAGE AUTH ================= */
+/* ================= AUTH PAGE ================= */
 window.openAuthPage = function (mode) {
   const root = document.getElementById("clerk-auth-root");
   const title = document.getElementById("auth-title");
-
   if (!root || !clerk) return;
 
   root.innerHTML = "";
-
-  title.textContent =
-    mode === "sign-up" ? "Create your account" : "Welcome back";
+  title.textContent = mode === "sign-up" ? "Create your account" : "Welcome back";
 
   navigateTo("auth-view");
 
-  const onSuccess = function () {
+  const onSuccess = () => {
     syncUserToUI();
     navigateTo("dashboard-view");
   };
 
-  if (mode === "sign-up") {
-    clerk.mountSignUp(root, { afterSignUp: onSuccess });
-  } else {
-    clerk.mountSignIn(root, { afterSignIn: onSuccess });
-  }
+  mode === "sign-up"
+    ? clerk.mountSignUp(root, { afterSignUp: onSuccess })
+    : clerk.mountSignIn(root, { afterSignIn: onSuccess });
 };
 
 /* ================= NAVIGATION ================= */
 window.navigateTo = function (viewId) {
-  const body = document.body;
-
-  // toggle auth state
-  if (viewId === "auth-view") {
-    body.classList.add("auth-active");
-  } else {
-    body.classList.remove("auth-active");
-  }
-
   const protectedViews = [
     "dashboard-view",
     "tasks-view",
+    "task-runner-view",
     "payout-view",
     "history-view",
     "quality-view",
     "profile-view",
   ];
 
-  if (protectedViews.includes(viewId)) {
-    if (!clerk || !clerk.isSignedIn) {
-      window.openAuthPage("sign-in");
-      return;
-    }
+  if (protectedViews.includes(viewId) && (!clerk || !clerk.isSignedIn)) {
+    openAuthPage("sign-in");
+    return;
   }
 
-  document.querySelectorAll(".view").forEach(v => {
-    v.classList.add("hidden");
-  });
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  document.getElementById(viewId)?.classList.remove("hidden");
 
-  const target = document.getElementById(viewId);
-  if (target) target.classList.remove("hidden");
-
-  const sidebar = document.getElementById("sidebar");
-  const controls = document.getElementById("top-right-controls");
-  const header = document.getElementById("general-header");
-
-  if (protectedViews.includes(viewId)) {
-    sidebar?.classList.remove("hidden");
-    controls?.classList.remove("hidden");
-    header?.classList.add("hidden");
-  } else {
-    sidebar?.classList.add("hidden");
-    controls?.classList.add("hidden");
-    header?.classList.remove("hidden");
-  }
+  document.getElementById("sidebar")?.classList.toggle("hidden", !protectedViews.includes(viewId));
+  document.getElementById("top-right-controls")?.classList.toggle("hidden", !protectedViews.includes(viewId));
+  document.getElementById("general-header")?.classList.toggle("hidden", protectedViews.includes(viewId));
 };
-
 
 /* ================= USER UI ================= */
 function syncUserToUI() {
-  if (!clerk || !clerk.isSignedIn) return;
+  if (!clerk?.isSignedIn) return;
 
   const user = clerk.user;
   const email = user.primaryEmailAddress?.emailAddress || "";
-  const name =
-    user.username ||
-    user.firstName ||
-    (email ? email.split("@")[0] : "User");
+  const name = user.username || user.firstName || email.split("@")[0];
 
-  const welcome = document.getElementById("welcome-username");
-  if (welcome) welcome.textContent = name;
+  document.getElementById("welcome-username")?.textContent = name;
+  document.getElementById("profile-username")?.textContent = name;
+  document.getElementById("profile-email-input")?.value = email;
+  document.getElementById("menu-username")?.textContent = name;
+  document.getElementById("menu-email")?.textContent = email;
 
-  const profileName = document.getElementById("profile-username");
-  if (profileName) profileName.textContent = name;
+  if (user.imageUrl) {
+    document.getElementById("profile-avatar")?.setAttribute("src", user.imageUrl);
+  }
 
-  const profileEmail = document.getElementById("profile-email-input");
-  if (profileEmail) profileEmail.value = email;
-
-  const avatar = document.getElementById("profile-avatar");
-  if (avatar && user.imageUrl) avatar.src = user.imageUrl;
-
-  const menuUser = document.getElementById("menu-username");
-  if (menuUser) menuUser.textContent = name;
-
-  const menuEmail = document.getElementById("menu-email");
-  if (menuEmail) menuEmail.textContent = email;
+  loadUserTaskState();
 }
 
 /* ================= LOGOUT ================= */
-window.handleLogout = async function () {
-  if (!clerk) return;
+window.handleLogout = async () => {
   await clerk.signOut();
   navigateTo("landing-view");
 };
 
-/* ================= DELETE ACCOUNT ================= */
-window.handleDeleteAccount = async function () {
-  if (!confirm("This will permanently delete your account. Continue?")) return;
-
-  try {
-    await clerk.user.delete();
-    alert("Account deleted successfully.");
-    navigateTo("landing-view");
-  } catch (e) {
-    console.error(e);
-    alert("Failed to delete account.");
-  }
-};
-
-/* ================= UI EVENTS ================= */
-const threeDotBtn = document.getElementById("three-dot-btn");
-if (threeDotBtn) {
-  threeDotBtn.addEventListener("click", () => {
-    const dd = document.getElementById("three-dot-dropdown");
-    if (dd) dd.classList.toggle("hidden");
-  });
-}
-
-const themeBtn = document.getElementById("theme-toggle-btn");
-if (themeBtn) {
-  themeBtn.addEventListener("click", () => {
-    document.documentElement.classList.toggle("dark");
-  });
-}
-
-/* ================= START ================= */
-document.addEventListener("DOMContentLoaded", initClerk);
-
+/* ================= TASK STORAGE (PER USER) ================= */
 let taskList = [];
-let currentTaskIndex = null;
-let completedTasks = JSON.parse(localStorage.getItem("completedTasks") || "[]");
+let taskState = { completedTasks: [], currentTaskIndex: null };
+
+function getTaskKey() {
+  return clerk?.user ? `adatacore_tasks_${clerk.user.id}` : null;
+}
+
+function loadUserTaskState() {
+  const key = getTaskKey();
+  if (!key) return;
+
+  taskState =
+    JSON.parse(localStorage.getItem(key)) ||
+    { completedTasks: [], currentTaskIndex: null };
+}
+
+function saveUserTaskState() {
+  const key = getTaskKey();
+  if (key) localStorage.setItem(key, JSON.stringify(taskState));
+}
 
 /* ================= LOAD TASKS ================= */
 async function loadTasks() {
+  if (taskList.length) return;
   const res = await fetch("./tasks.json");
   const data = await res.json();
   taskList = data.tasks || [];
 }
 
-/* ================= TASK SELECTION ================= */
+/* ================= TASK FLOW ================= */
 function getNextTaskIndex() {
-  const remaining = taskList.filter(
-    t => !completedTasks.find(c => c.taskId === t.id)
+  return taskList.findIndex(
+    t => !taskState.completedTasks.find(c => c.taskId === t.id)
   );
-
-  if (remaining.length === 0) return null;
-
-  const randomTask =
-    remaining[Math.floor(Math.random() * remaining.length)];
-
-  return taskList.findIndex(t => t.id === randomTask.id);
 }
 
-/* ================= START TASK ================= */
-window.startTaskFlow = async function () {
-  if (taskList.length === 0) {
-    await loadTasks();
-  }
+window.startTaskFlow = async () => {
+  await loadTasks();
 
-  currentTaskIndex = getNextTaskIndex();
-
-  if (currentTaskIndex === null) {
-    alert("No tasks available 🎉");
+  const next = getNextTaskIndex();
+  if (next === -1) {
+    alert("🎉 All tasks completed!");
     return;
   }
 
-  showTask(taskList[currentTaskIndex]);
+  taskState.currentTaskIndex = next;
+  saveUserTaskState();
+
   navigateTo("task-runner-view");
+  showTask(taskList[next]);
 };
 
-/* ================= SHOW TASK ================= */
 function showTask(task) {
-  const container = document.getElementById("task-runner-view");
-  const body = container.querySelector("#task-body");
-
-  document.getElementById("task-title").innerText = task.title;
-  document.getElementById("task-desc").innerText = task.description;
-
-  body.innerHTML = renderTaskInput(task);
+  document.getElementById("task-title").textContent = task.title;
+  document.getElementById("task-desc").textContent = task.description;
+  document.getElementById("task-body").innerHTML = renderTaskInput(task);
 }
 
-/* ================= RENDER INPUT ================= */
+/* ================= INPUT RENDER ================= */
 function renderTaskInput(task) {
-
-  // TEXT INPUT (image labeling, short answer)
   if (task.type === "text") {
     return `
-      ${task.payload.imageUrl ? 
-        `<img src="${task.payload.imageUrl}" class="rounded mb-4 max-h-64 object-contain" />` 
-        : ""}
-
-      <input 
-        id="task-answer"
-        class="w-full p-3 rounded bg-gray-700 text-white"
-        placeholder="Enter your answer..."
-      />
+      ${task.payload.imageUrl ? `<img src="${task.payload.imageUrl}" class="mb-4 rounded" />` : ""}
+      <input id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white" />
     `;
   }
 
-  // MULTIPLE CHOICE
   if (task.type === "choice") {
     return task.payload.options
-      .map(
-        opt => `
-          <label class="block mb-2 text-gray-300">
-            <input type="radio" name="task-answer" value="${opt}" class="mr-2" />
-            ${opt}
-          </label>
-        `
-      )
+      .map(o => `<label class="block"><input type="radio" name="task-answer" value="${o}"/> ${o}</label>`)
       .join("");
   }
 
-  // LONG TEXT / FEEDBACK
   if (task.type === "textarea") {
-    return `
-      <p class="mb-2 text-gray-300">${task.payload.text || ""}</p>
-      <textarea
-        id="task-answer"
-        class="w-full p-3 rounded bg-gray-700 text-white"
-        rows="5"
-        placeholder="Write your response..."
-      ></textarea>
-    `;
+    return `<textarea id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white"></textarea>`;
   }
 
-  return `<p class="text-red-400">Unsupported task type</p>`;
+  return `<p>Unsupported task type</p>`;
 }
 
-
 /* ================= SUBMIT TASK ================= */
-window.submitTask = function () {
+window.submitTask = () => {
   const answer =
     document.getElementById("task-answer")?.value ||
     document.querySelector("input[name='task-answer']:checked")?.value;
 
-  if (!answer) {
-    alert("Please complete the task");
-    return;
-  }
+  if (!answer) return alert("Please complete the task");
 
-  completedTasks.push({
-    taskId: taskList[currentTaskIndex].id,
+  taskState.completedTasks.push({
+    taskId: taskList[taskState.currentTaskIndex].id,
     answer,
     completedAt: new Date().toISOString()
   });
 
-  localStorage.setItem("completedTasks", JSON.stringify(completedTasks));
+  const next = getNextTaskIndex();
+  taskState.currentTaskIndex = next;
+  saveUserTaskState();
 
-  currentTaskIndex = getNextTaskIndex();
-
-  if (currentTaskIndex === null) {
-    alert("All tasks completed 🎉");
+  if (next === -1) {
+    alert("🎉 All tasks completed!");
     navigateTo("dashboard-view");
     return;
   }
 
-  showTask(taskList[currentTaskIndex]);
+  showTask(taskList[next]);
 };
+
+/* ================= UI EVENTS ================= */
+document.getElementById("three-dot-btn")?.addEventListener("click", () => {
+  document.getElementById("three-dot-dropdown")?.classList.toggle("hidden");
+});
+
+document.getElementById("theme-toggle-btn")?.addEventListener("click", () => {
+  document.documentElement.classList.toggle("dark");
+});
+
+document.addEventListener("DOMContentLoaded", initClerk);
+
