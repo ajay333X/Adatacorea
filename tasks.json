@@ -1,0 +1,32 @@
+{
+  "tasks": [
+    {
+      "id": "task_001",
+      "title": "Image Labeling",
+      "description": "Label all objects visible in the image.",
+      "type": "text",
+      "payload": {
+        "imageUrl": "https://placehold.co/600x400"
+      }
+    },
+    {
+      "id": "task_002",
+      "title": "Text Classification",
+      "description": "Classify the sentiment of the given text.",
+      "type": "choice",
+      "payload": {
+        "text": "I really enjoyed using this app!",
+        "options": ["Positive", "Neutral", "Negative"]
+      }
+    },
+    {
+      "id": "task_003",
+      "title": "Short Answer",
+      "description": "Write a short summary of the paragraph.",
+      "type": "textarea",
+      "payload": {
+        "text": "Artificial intelligence is transforming industries..."
+      }
+    }
+  ]
+}
