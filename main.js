@@ -2,7 +2,14 @@ import { Clerk } from "https://esm.sh/@clerk/clerk-js";
 import { LOGO_FULL_SVG, LOGO_ICON_SVG } from "./logos.js";
 
 let clerk = null;
-let clerkMounted = false;
+function cleanupAuthView() {
+  const authRoot = document.getElementById("clerk-auth-root");
+  if (authRoot) {
+    authRoot.innerHTML = "";
+  }
+  window.clerkMounted = false;
+}
+
 
 /* ================= INIT ================= */
 async function initClerk() {
@@ -33,29 +40,32 @@ function renderLogos() {
 }
 
 /* ================= AUTH ================= */
-window.openAuthPage = (mode = "sign-in") => {
+window.openAuthPage = function (mode) {
   const root = document.getElementById("clerk-auth-root");
   const title = document.getElementById("auth-title");
+
   if (!root || !clerk) return;
+  if (window.clerkMounted) return; // ⛔ prevents crash
 
-  if (clerkMounted) return;
-  clerkMounted = true;
-
-  root.innerHTML = "";
-  title.textContent = mode === "sign-up" ? "Create your account" : "Welcome back";
-
+  cleanupAuthView();
   navigateTo("auth-view");
 
+  title.textContent =
+    mode === "sign-up" ? "Create your account" : "Welcome back";
+
   const onSuccess = () => {
-    clerkMounted = false;
+    cleanupAuthView();
     syncUserToUI();
     navigateTo("dashboard-view");
   };
+
+  window.clerkMounted = true;
 
   mode === "sign-up"
     ? clerk.mountSignUp(root, { afterSignUp: onSuccess })
     : clerk.mountSignIn(root, { afterSignIn: onSuccess });
 };
+
 
 /* ================= NAVIGATION ================= */
 window.navigateTo = (viewId) => {
@@ -69,33 +79,31 @@ window.navigateTo = (viewId) => {
     "profile-view",
   ];
 
-  /* 🔐 Redirect unauth users */
+  // 🔐 Block protected routes
   if (protectedViews.includes(viewId) && !clerk?.isSignedIn) {
+    cleanupAuthView();
     openAuthPage("sign-in");
     return;
   }
 
-  /* 🧹 HIDE ALL VIEWS + DISABLE INTERACTION */
+  // 🔥 VERY IMPORTANT: cleanup auth if leaving it
+  if (viewId !== "auth-view") {
+    cleanupAuthView();
+  }
+
+  // Hide all views
   document.querySelectorAll(".view").forEach(v => {
     v.classList.add("hidden");
     v.style.pointerEvents = "none";
   });
 
-  /* ✅ SHOW TARGET VIEW */
+  // Show target
   const target = document.getElementById(viewId);
   if (target) {
     target.classList.remove("hidden");
     target.style.pointerEvents = "auto";
   }
 
-  /* 🔄 RESET CLERK AUTH STATE WHEN LEAVING AUTH VIEW */
-  if (viewId !== "auth-view") {
-    window.clerkMounted = false;
-    const authRoot = document.getElementById("clerk-auth-root");
-    if (authRoot) authRoot.innerHTML = "";
-  }
-
-  /* 🧭 LAYOUT CONTROLS */
   const isProtected = protectedViews.includes(viewId);
 
   document.getElementById("sidebar")?.classList.toggle("hidden", !isProtected);
