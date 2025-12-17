@@ -208,7 +208,7 @@
                         Home
                     </button>
                     <button class="px-4 py-2 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition duration-150"
-                            onclick="window.openAuthPage('sign-in')">
+                            onclick="window.openAuthView('sign-in')">
                         Login / Sign Up
                     </button>
                 </nav>
@@ -260,7 +260,7 @@
       <!-- SIGN UP -->
       <button
         class="px-8 py-4 bg-violet-600 text-white font-bold text-lg rounded-xl hover:bg-violet-700 shadow-xl shadow-violet-500/30 transition duration-300 transform hover:scale-[1.05]"
-       onclick="window.openAuthPage('sign-up')">
+        onclick="window.openAuthPage('sign-up')">
         Start Earning Now
       </button>
 
@@ -300,19 +300,12 @@
 </div>
 
 <!-- AUTH VIEW (PAGE-BASED, CLEAN) -->
-<!-- AUTH VIEW (CLERK SAFE) -->
-<div
-  id="auth-view"
-  class="view hidden flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900"
-  aria-hidden="true"
->
-  <div
-    class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md"
-  >
-    <h2
-      id="auth-title"
-      class="text-3xl font-bold text-gray-900 dark:text-white mb-4 text-center"
-    >
+<div id="auth-view"
+     class="view hidden flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+
+  <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+    <h2 id="auth-title"
+        class="text-3xl font-bold text-gray-900 dark:text-white mb-4 text-center">
       Welcome
     </h2>
 
@@ -320,16 +313,9 @@
       Please continue to proceed
     </p>
 
-    <!-- ⚠️ Clerk owns this node completely -->
-    <!-- ❌ Do NOT clear / replace / remove this element in JS -->
-    <div
-      id="clerk-auth-root"
-      data-clerk-root
-      class="min-h-[420px]"
-    ></div>
+    <div id="clerk-auth-root"></div>
   </div>
 </div>
-
 
 
 
@@ -344,12 +330,9 @@
                             You have 3 high-priority tasks waiting for review.
                         </p>
                     </div>
-                   <button
-  class="mt-4 lg:mt-0 px-6 py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 shadow-lg transition"
-  onclick="startTaskFlow()">
-  Start Next Task
-</button>
-
+                    <button class="mt-4 lg:mt-0 px-6 py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 shadow-lg shadow-violet-500/30 transition duration-300 transform hover:scale-[1.03] active:scale-[0.98]">
+                        Start Next Task
+                    </button>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -467,32 +450,8 @@
                     <p class="text-gray-600 dark:text-gray-400">Task List Here.</p>
                 </div>
             </div>
-<div id="task-runner-view"
-     class="view hidden min-h-screen flex items-center justify-center bg-gray-900">
 
-  <div class="bg-gray-800 p-8 rounded-2xl w-full max-w-2xl shadow-xl">
-    
-    <h2 id="task-title"
-        class="text-2xl font-bold text-white mb-2">
-    </h2>
-
-    <p id="task-desc"
-       class="text-gray-400 mb-6">
-    </p>
-
-    <div id="task-body" class="mb-6"></div>
-
-    <button
-      class="w-full py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition"
-      onclick="submitTask()">
-      Submit & Next
-    </button>
-
-  </div>
-</div>
         </div> <!-- end content-area -->
-    
-
     </main>
 
     <!-- MESSAGE MODAL (unchanged) -->
@@ -517,10 +476,9 @@
             class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-white">
       ✕
     </button>
+    <div id="clerk-auth-root"></div>
   </div>
 </div>
 
 </body>
 </html>
-
-
