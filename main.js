@@ -4,14 +4,6 @@ import { LOGO_FULL_SVG, LOGO_ICON_SVG } from "./logos.js";
 let clerk = null;
 let clerkMounted = false;
 
-function cleanupAuthView() {
-  const authRoot = document.getElementById("clerk-auth-root");
-  if (authRoot) {
-    authRoot.innerHTML = "";
-  }
-  clerkMounted = false;
-}
-
 /* ================= INIT ================= */
 async function initClerk() {
   clerk = new Clerk("pk_test_ZXZvbHZlZC1tYWNrZXJlbC01MC5jbGVyay5hY2NvdW50cy5kZXYk");
@@ -41,23 +33,23 @@ function renderLogos() {
 }
 
 /* ================= AUTH ================= */
-window.openAuthPage = function (mode = "sign-in") {
+window.openAuthPage = (mode = "sign-in") => {
   const root = document.getElementById("clerk-auth-root");
   const title = document.getElementById("auth-title");
 
   if (!root || !clerk) return;
-  if (clerkMounted) return;
 
-  clerkMounted = true;
-  root.innerHTML = "";
+  navigateTo("auth-view");
 
   title.textContent =
     mode === "sign-up" ? "Create your account" : "Welcome back";
 
-  navigateTo("auth-view");
+  // ⛔ Prevent remount
+  if (authMounted) return;
+  authMounted = true;
 
   const onSuccess = () => {
-    cleanupAuthView();
+    authMounted = false;
     syncUserToUI();
     navigateTo("dashboard-view");
   };
@@ -68,6 +60,7 @@ window.openAuthPage = function (mode = "sign-in") {
     clerk.mountSignIn(root, { afterSignIn: onSuccess });
   }
 };
+
 
 
 /* ================= NAVIGATION ================= */
@@ -82,38 +75,27 @@ window.navigateTo = (viewId) => {
     "profile-view",
   ];
 
-  // 🔐 Auth guard
   if (protectedViews.includes(viewId) && !clerk?.isSignedIn) {
     openAuthPage("sign-in");
     return;
   }
 
-  // 🧹 Clean auth ONLY when leaving auth-view
-  if (
-    document.getElementById("auth-view") &&
-    !document.getElementById("auth-view").classList.contains("hidden") &&
-    viewId !== "auth-view"
-  ) {
-    cleanupAuthView();
-  }
-
-  // Hide all views
   document.querySelectorAll(".view").forEach(v => {
     v.classList.add("hidden");
+    v.style.pointerEvents = "none";
   });
 
-  // Show target view
-  document.getElementById(viewId)?.classList.remove("hidden");
+  const target = document.getElementById(viewId);
+  if (target) {
+    target.classList.remove("hidden");
+    target.style.pointerEvents = "auto";
+  }
 
   const isProtected = protectedViews.includes(viewId);
 
   document.getElementById("sidebar")?.classList.toggle("hidden", !isProtected);
-  document
-    .getElementById("top-right-controls")
-    ?.classList.toggle("hidden", !isProtected);
-  document
-    .getElementById("general-header")
-    ?.classList.toggle("hidden", isProtected);
+  document.getElementById("top-right-controls")?.classList.toggle("hidden", !isProtected);
+  document.getElementById("general-header")?.classList.toggle("hidden", isProtected);
 };
 
 
