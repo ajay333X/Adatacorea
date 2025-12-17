@@ -2,11 +2,13 @@ import { Clerk } from "https://esm.sh/@clerk/clerk-js";
 import { LOGO_FULL_SVG, LOGO_ICON_SVG } from "./logos.js";
 
 let clerk = null;
-let clerkMounted = false;
 
 /* ================= INIT ================= */
 async function initClerk() {
-  clerk = new Clerk("pk_test_ZXZvbHZlZC1tYWNrZXJlbC01MC5jbGVyay5hY2NvdW50cy5kZXYk");
+  clerk = new Clerk(
+    "pk_test_ZXZvbHZlZC1tYWNrZXJlbC01MC5jbGVyay5hY2NvdW50cy5kZXYk"
+  );
+
   await clerk.load();
   window.clerk = clerk;
 
@@ -22,34 +24,31 @@ async function initClerk() {
 
 /* ================= LOGOS ================= */
 function renderLogos() {
-  document.getElementById("sidebar-logo-icon")?.replaceChildren();
-  document.getElementById("sidebar-logo-icon")?.insertAdjacentHTML("beforeend", LOGO_ICON_SVG);
+  const sidebarLogo = document.getElementById("sidebar-logo-icon");
+  if (sidebarLogo) sidebarLogo.innerHTML = LOGO_ICON_SVG;
 
-  document.getElementById("mobile-logo-icon")?.replaceChildren();
-  document.getElementById("mobile-logo-icon")?.insertAdjacentHTML("beforeend", LOGO_ICON_SVG);
+  const mobileLogo = document.getElementById("mobile-logo-icon");
+  if (mobileLogo) mobileLogo.innerHTML = LOGO_ICON_SVG;
 
-  document.getElementById("landing-logo-large")?.replaceChildren();
-  document.getElementById("landing-logo-large")?.insertAdjacentHTML("beforeend", LOGO_FULL_SVG);
+  const landingLogo = document.getElementById("landing-logo-large");
+  if (landingLogo) landingLogo.innerHTML = LOGO_FULL_SVG;
 }
 
-/* ================= AUTH ================= */
-window.openAuthPage = (mode = "sign-in") => {
+/* ================= PAGE AUTH ================= */
+window.openAuthPage = function (mode) {
   const root = document.getElementById("clerk-auth-root");
   const title = document.getElementById("auth-title");
 
   if (!root || !clerk) return;
 
-  navigateTo("auth-view");
+  root.innerHTML = "";
 
   title.textContent =
     mode === "sign-up" ? "Create your account" : "Welcome back";
 
-  // ⛔ Prevent remount
-  if (authMounted) return;
-  authMounted = true;
+  navigateTo("auth-view");
 
-  const onSuccess = () => {
-    authMounted = false;
+  const onSuccess = function () {
     syncUserToUI();
     navigateTo("dashboard-view");
   };
@@ -61,170 +60,227 @@ window.openAuthPage = (mode = "sign-in") => {
   }
 };
 
-
-
 /* ================= NAVIGATION ================= */
-window.navigateTo = (viewId) => {
+window.navigateTo = function (viewId) {
+  const body = document.body;
+
+  // toggle auth state
+  if (viewId === "auth-view") {
+    body.classList.add("auth-active");
+  } else {
+    body.classList.remove("auth-active");
+  }
+
   const protectedViews = [
     "dashboard-view",
     "tasks-view",
-    "task-runner-view",
     "payout-view",
     "history-view",
     "quality-view",
     "profile-view",
   ];
 
-  if (protectedViews.includes(viewId) && !clerk?.isSignedIn) {
-    openAuthPage("sign-in");
-    return;
+  if (protectedViews.includes(viewId)) {
+    if (!clerk || !clerk.isSignedIn) {
+      window.openAuthPage("sign-in");
+      return;
+    }
   }
 
   document.querySelectorAll(".view").forEach(v => {
     v.classList.add("hidden");
-    v.style.pointerEvents = "none";
   });
 
   const target = document.getElementById(viewId);
-  if (target) {
-    target.classList.remove("hidden");
-    target.style.pointerEvents = "auto";
+  if (target) target.classList.remove("hidden");
+
+  const sidebar = document.getElementById("sidebar");
+  const controls = document.getElementById("top-right-controls");
+  const header = document.getElementById("general-header");
+
+  if (protectedViews.includes(viewId)) {
+    sidebar?.classList.remove("hidden");
+    controls?.classList.remove("hidden");
+    header?.classList.add("hidden");
+  } else {
+    sidebar?.classList.add("hidden");
+    controls?.classList.add("hidden");
+    header?.classList.remove("hidden");
   }
-
-  const isProtected = protectedViews.includes(viewId);
-
-  document.getElementById("sidebar")?.classList.toggle("hidden", !isProtected);
-  document.getElementById("top-right-controls")?.classList.toggle("hidden", !isProtected);
-  document.getElementById("general-header")?.classList.toggle("hidden", isProtected);
 };
 
 
 /* ================= USER UI ================= */
 function syncUserToUI() {
-  if (!clerk?.isSignedIn) return;
+  if (!clerk || !clerk.isSignedIn) return;
 
   const user = clerk.user;
   const email = user.primaryEmailAddress?.emailAddress || "";
-  const name = user.username || user.firstName || email.split("@")[0] || "User";
+  const name =
+    user.username ||
+    user.firstName ||
+    (email ? email.split("@")[0] : "User");
 
-  document.getElementById("welcome-username")?.replaceChildren(name);
-  document.getElementById("profile-username")?.replaceChildren(name);
-  document.getElementById("profile-email-input") && (document.getElementById("profile-email-input").value = email);
-  if (user.imageUrl) document.getElementById("profile-avatar")?.setAttribute("src", user.imageUrl);
+  const welcome = document.getElementById("welcome-username");
+  if (welcome) welcome.textContent = name;
+
+  const profileName = document.getElementById("profile-username");
+  if (profileName) profileName.textContent = name;
+
+  const profileEmail = document.getElementById("profile-email-input");
+  if (profileEmail) profileEmail.value = email;
+
+  const avatar = document.getElementById("profile-avatar");
+  if (avatar && user.imageUrl) avatar.src = user.imageUrl;
+
+  const menuUser = document.getElementById("menu-username");
+  if (menuUser) menuUser.textContent = name;
+
+  const menuEmail = document.getElementById("menu-email");
+  if (menuEmail) menuEmail.textContent = email;
 }
 
 /* ================= LOGOUT ================= */
-window.handleLogout = async () => {
+window.handleLogout = async function () {
+  if (!clerk) return;
   await clerk.signOut();
-  location.reload();
+  navigateTo("landing-view");
 };
 
-/* ================= TASK STATE ================= */
+/* ================= DELETE ACCOUNT ================= */
+window.handleDeleteAccount = async function () {
+  if (!confirm("This will permanently delete your account. Continue?")) return;
+
+  try {
+    await clerk.user.delete();
+    alert("Account deleted successfully.");
+    navigateTo("landing-view");
+  } catch (e) {
+    console.error(e);
+    alert("Failed to delete account.");
+  }
+};
+
+/* ================= UI EVENTS ================= */
+const threeDotBtn = document.getElementById("three-dot-btn");
+if (threeDotBtn) {
+  threeDotBtn.addEventListener("click", () => {
+    const dd = document.getElementById("three-dot-dropdown");
+    if (dd) dd.classList.toggle("hidden");
+  });
+}
+
+const themeBtn = document.getElementById("theme-toggle-btn");
+if (themeBtn) {
+  themeBtn.addEventListener("click", () => {
+    document.documentElement.classList.toggle("dark");
+  });
+}
+
+/* ================= START ================= */
+document.addEventListener("DOMContentLoaded", initClerk);
 let taskList = [];
-let taskState = { completedTasks: [], currentTaskIndex: null };
-
-function getTaskKey() {
-  return clerk?.user ? `adatacore_tasks_${clerk.user.id}` : null;
-}
-
-function saveUserTaskState() {
-  const key = getTaskKey();
-  if (key) localStorage.setItem(key, JSON.stringify(taskState));
-}
+let currentTaskIndex = 0;
+let completedTasks = [];
 
 /* ================= LOAD TASKS ================= */
 async function loadTasks() {
-  if (taskList.length) return;
-
-  try {
-    const res = await fetch(
-      "https://script.google.com/macros/s/AKfycbwaDz8TJW3pMf1_wAoAXT0End9Dymw1RRs160xCWh6oq8IM_LEV4f1eqs48kafpEOxA/exec",
-      { redirect: "follow" }
-    );
-
-    const data = await res.json();
-    taskList = Array.isArray(data.tasks) ? data.tasks : [];
-
-    if (!taskList.length) throw new Error("No tasks found");
-  } catch (err) {
-    console.error(err);
-    alert("⚠️ Failed to load tasks");
-  }
+  const res = await fetch("./tasks.json");
+  const data = await res.json();
+  taskList = data.tasks;
 }
 
-/* ================= TASK FLOW ================= */
-function getNextTaskIndex() {
-  return taskList.findIndex(
-    t => !taskState.completedTasks.some(c => c.taskId === t.id)
-  );
-}
-
-window.startTaskFlow = async () => {
-  await loadTasks();
-
-  const next = getNextTaskIndex();
-  if (next === -1) {
-    alert("🎉 All tasks completed!");
-    return;
+/* ================= START TASK ================= */
+window.startTaskFlow = async function () {
+  if (taskList.length === 0) {
+    await loadTasks();
   }
 
-  taskState.currentTaskIndex = next;
-  saveUserTaskState();
-
-  navigateTo("task-runner-view");
-  showTask(taskList[next]);
+  currentTaskIndex = getNextTaskIndex();
+  showTask(taskList[currentTaskIndex]);
 };
 
+/* ================= SHOW TASK ================= */
 function showTask(task) {
-  if (!task) return;
+  const container = document.getElementById("tasks-view");
+  container.innerHTML = `
+    <h1 class="text-2xl font-bold mb-4">${task.title}</h1>
+    <p class="mb-4 text-gray-400">${task.description}</p>
 
-  document.getElementById("task-title").textContent = task.title || "Task";
-  document.getElementById("task-desc").textContent = task.description || "";
-  document.getElementById("task-body").innerHTML = renderTaskInput(task);
+    ${renderTaskInput(task)}
+
+    <button
+      class="mt-6 px-6 py-3 bg-violet-600 text-white rounded-xl"
+      onclick="submitTask('${task.id}')">
+      Submit Task
+    </button>
+  `;
 }
 
 /* ================= RENDER INPUT ================= */
 function renderTaskInput(task) {
-  if (task.type === "textarea") {
-    return `<textarea id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white"></textarea>`;
+  if (task.type === "text") {
+    return `
+      <img src="${task.payload.imageUrl}" class="rounded mb-4" />
+      <input id="task-answer" class="w-full p-3 rounded bg-gray-700" placeholder="Enter labels..." />
+    `;
   }
 
   if (task.type === "choice") {
-    return task.payload.options.map(o =>
-      `<label><input type="radio" name="task-answer" value="${o}"> ${o}</label>`
-    ).join("");
+    return task.payload.options
+      .map(
+        opt => `
+        <label class="block mb-2">
+          <input type="radio" name="task-answer" value="${opt}" />
+          ${opt}
+        </label>`
+      )
+      .join("");
   }
 
-  return `<input id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white" />`;
+  if (task.type === "textarea") {
+    return `
+      <p class="mb-2">${task.payload.text}</p>
+      <textarea id="task-answer" class="w-full p-3 rounded bg-gray-700"></textarea>
+    `;
+  }
+
+  return "";
 }
 
-/* ================= SUBMIT ================= */
-window.submitTask = () => {
+/* ================= SUBMIT TASK ================= */
+window.submitTask = function (taskId) {
   const answer =
     document.getElementById("task-answer")?.value ||
     document.querySelector("input[name='task-answer']:checked")?.value;
 
-  if (!answer) return alert("Please complete the task");
-
-  taskState.completedTasks.push({
-    taskId: taskList[taskState.currentTaskIndex].id,
+  completedTasks.push({
+    taskId,
     answer,
-    completedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString()
   });
 
-  saveUserTaskState();
-  startTaskFlow();
+  // store progress locally
+  localStorage.setItem("completedTasks", JSON.stringify(completedTasks));
+
+  // move to next task
+  const nextIndex = getNextTaskIndex();
+  if (nextIndex === null) {
+    alert("All tasks completed 🎉");
+    return;
+  }
+
+  currentTaskIndex = nextIndex;
+  showTask(taskList[currentTaskIndex]);
 };
 
-/* ================= UI EVENTS ================= */
-document.getElementById("three-dot-btn")?.addEventListener("click", () => {
-  document.getElementById("three-dot-dropdown")?.classList.toggle("hidden");
-});
-
-document.getElementById("theme-toggle-btn")?.addEventListener("click", () => {
-  document.documentElement.classList.toggle("dark");
-});
-
-document.addEventListener("DOMContentLoaded", initClerk);
-
+/* ================= TASK SELECTION ================= */
+function getNextTaskIndex() {
+  for (let i = 0; i < taskList.length; i++) {
+    if (!completedTasks.find(t => t.taskId === taskList[i].id)) {
+      return i;
+    }
+  }
+  return null;
+}
 
