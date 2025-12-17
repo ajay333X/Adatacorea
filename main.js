@@ -69,18 +69,40 @@ window.navigateTo = (viewId) => {
     "profile-view",
   ];
 
+  /* 🔐 Redirect unauth users */
   if (protectedViews.includes(viewId) && !clerk?.isSignedIn) {
     openAuthPage("sign-in");
     return;
   }
 
-  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
-  document.getElementById(viewId)?.classList.remove("hidden");
+  /* 🧹 HIDE ALL VIEWS + DISABLE INTERACTION */
+  document.querySelectorAll(".view").forEach(v => {
+    v.classList.add("hidden");
+    v.style.pointerEvents = "none";
+  });
 
-  document.getElementById("sidebar")?.classList.toggle("hidden", !protectedViews.includes(viewId));
-  document.getElementById("top-right-controls")?.classList.toggle("hidden", !protectedViews.includes(viewId));
-  document.getElementById("general-header")?.classList.toggle("hidden", protectedViews.includes(viewId));
+  /* ✅ SHOW TARGET VIEW */
+  const target = document.getElementById(viewId);
+  if (target) {
+    target.classList.remove("hidden");
+    target.style.pointerEvents = "auto";
+  }
+
+  /* 🔄 RESET CLERK AUTH STATE WHEN LEAVING AUTH VIEW */
+  if (viewId !== "auth-view") {
+    window.clerkMounted = false;
+    const authRoot = document.getElementById("clerk-auth-root");
+    if (authRoot) authRoot.innerHTML = "";
+  }
+
+  /* 🧭 LAYOUT CONTROLS */
+  const isProtected = protectedViews.includes(viewId);
+
+  document.getElementById("sidebar")?.classList.toggle("hidden", !isProtected);
+  document.getElementById("top-right-controls")?.classList.toggle("hidden", !isProtected);
+  document.getElementById("general-header")?.classList.toggle("hidden", isProtected);
 };
+
 
 /* ================= USER UI ================= */
 function syncUserToUI() {
