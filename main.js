@@ -143,17 +143,37 @@ function saveUserTaskState() {
 }
 
 /* ================= LOAD TASKS ================= */
+/* ================= LOAD TASKS ================= */
 async function loadTasks() {
   if (taskList.length) return;
-  const res = await fetch("./tasks.json");
-  const data = await res.json();
-  taskList = data.tasks || [];
+
+  try {
+    const res = await fetch(
+      "https://script.google.com/macros/s/AKfycbwaDz8TJW3pMf1_wAoAXT0End9Dymw1RRs160xCWh6oq8IM_LEV4f1eqs48kafpEOxA/exec"
+    );
+
+    if (!res.ok) {
+      throw new Error(`HTTP error ${res.status}`);
+    }
+
+    const data = await res.json();
+    taskList = Array.isArray(data.tasks) ? data.tasks : [];
+
+    if (!taskList.length) {
+      alert("No tasks available right now.");
+    }
+  } catch (err) {
+    console.error("Failed to load tasks:", err);
+    alert("⚠️ Unable to load tasks. Please try again later.");
+  }
 }
 
+
+/* ================= TASK FLOW ================= */
 /* ================= TASK FLOW ================= */
 function getNextTaskIndex() {
   return taskList.findIndex(
-    t => !taskState.completedTasks.find(c => c.taskId === t.id)
+    t => !taskState.completedTasks.some(c => c.taskId === t.id)
   );
 }
 
@@ -163,6 +183,7 @@ window.startTaskFlow = async () => {
   const next = getNextTaskIndex();
   if (next === -1) {
     alert("🎉 All tasks completed!");
+    navigateTo("dashboard-view");
     return;
   }
 
@@ -172,52 +193,92 @@ window.startTaskFlow = async () => {
   navigateTo("task-runner-view");
   showTask(taskList[next]);
 };
-
-function showTask(task) {
-  document.getElementById("task-title").textContent = task.title;
-  document.getElementById("task-desc").textContent = task.description;
-  document.getElementById("task-body").innerHTML = renderTaskInput(task);
 }
+function showTask(task) {
+  const title = document.getElementById("task-title");
+  const desc = document.getElementById("task-desc");
+  const body = document.getElementById("task-body");
+
+  if (!title || !desc || !body) {
+    console.error("Task runner elements missing");
+    return;
+  }
+
+  title.textContent = task.title || "Task";
+  desc.textContent = task.description || "";
+  body.innerHTML = renderTaskInput(task);
+}
+
 
 /* ================= INPUT RENDER ================= */
 function renderTaskInput(task) {
   if (task.type === "text") {
     return `
-      ${task.payload.imageUrl ? `<img src="${task.payload.imageUrl}" class="mb-4 rounded" />` : ""}
+      ${task.payload?.imageUrl ? `<img src="${task.payload.imageUrl}" class="mb-4 rounded" />` : ""}
       <input id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white" />
     `;
   }
 
   if (task.type === "choice") {
     return task.payload.options
-      .map(o => `<label class="block"><input type="radio" name="task-answer" value="${o}"/> ${o}</label>`)
+      .map(
+        o => `
+        <label class="block mb-2">
+          <input type="radio" name="task-answer" value="${o}" />
+          <span class="ml-2">${o}</span>
+        </label>
+      `
+      )
       .join("");
   }
 
   if (task.type === "textarea") {
-    return `<textarea id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white"></textarea>`;
+    return `
+      <textarea id="task-answer" class="w-full p-3 rounded bg-gray-700 text-white"></textarea>
+    `;
   }
 
-  return `<p>Unsupported task type</p>`;
+  /* 🎙 AUDIO TASK */
+  if (task.type === "audio") {
+    return `
+      <p class="text-sm text-gray-400 mb-3">
+        Language: ${task.payload?.language || "N/A"}
+      </p>
+
+      <button id="record-btn" class="px-4 py-2 bg-red-600 rounded text-white">
+        🎙 Start Recording
+      </button>
+
+      <audio id="audio-preview" controls class="hidden mt-4 w-full"></audio>
+    `;
+  }
+
+  return `<p class="text-red-500">Unsupported task type</p>`;
 }
 
+
+/* ================= SUBMIT TASK ================= */
 /* ================= SUBMIT TASK ================= */
 window.submitTask = () => {
   const answer =
     document.getElementById("task-answer")?.value ||
     document.querySelector("input[name='task-answer']:checked")?.value;
 
-  if (!answer) return alert("Please complete the task");
+  if (!answer) {
+    alert("Please complete the task");
+    return;
+  }
 
   taskState.completedTasks.push({
     taskId: taskList[taskState.currentTaskIndex].id,
     answer,
-    completedAt: new Date().toISOString()
+    completedAt: new Date().toISOString(),
   });
+
+  saveUserTaskState();
 
   const next = getNextTaskIndex();
   taskState.currentTaskIndex = next;
-  saveUserTaskState();
 
   if (next === -1) {
     alert("🎉 All tasks completed!");
@@ -227,6 +288,7 @@ window.submitTask = () => {
 
   showTask(taskList[next]);
 };
+
 
 /* ================= UI EVENTS ================= */
 document.getElementById("three-dot-btn")?.addEventListener("click", () => {
