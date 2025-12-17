@@ -300,12 +300,19 @@
 </div>
 
 <!-- AUTH VIEW (PAGE-BASED, CLEAN) -->
-<div id="auth-view"
-     class="view hidden flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-
-  <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
-    <h2 id="auth-title"
-        class="text-3xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+<!-- AUTH VIEW (CLERK SAFE) -->
+<div
+  id="auth-view"
+  class="view hidden flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900"
+  aria-hidden="true"
+>
+  <div
+    class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md"
+  >
+    <h2
+      id="auth-title"
+      class="text-3xl font-bold text-gray-900 dark:text-white mb-4 text-center"
+    >
       Welcome
     </h2>
 
@@ -313,9 +320,16 @@
       Please continue to proceed
     </p>
 
-    <div id="clerk-auth-root"></div>
+    <!-- ⚠️ Clerk owns this node completely -->
+    <!-- ❌ Do NOT clear / replace / remove this element in JS -->
+    <div
+      id="clerk-auth-root"
+      data-clerk-root
+      class="min-h-[420px]"
+    ></div>
   </div>
 </div>
+
 
 
 
@@ -508,4 +522,5 @@
 
 </body>
 </html>
+
 
