@@ -2,14 +2,15 @@ import { Clerk } from "https://esm.sh/@clerk/clerk-js";
 import { LOGO_FULL_SVG, LOGO_ICON_SVG } from "./logos.js";
 
 let clerk = null;
+let clerkMounted = false;
+
 function cleanupAuthView() {
   const authRoot = document.getElementById("clerk-auth-root");
   if (authRoot) {
     authRoot.innerHTML = "";
   }
-  window.clerkMounted = false;
+  clerkMounted = false;
 }
-
 
 /* ================= INIT ================= */
 async function initClerk() {
@@ -40,18 +41,20 @@ function renderLogos() {
 }
 
 /* ================= AUTH ================= */
-window.openAuthPage = function (mode) {
+window.openAuthPage = function (mode = "sign-in") {
   const root = document.getElementById("clerk-auth-root");
   const title = document.getElementById("auth-title");
 
   if (!root || !clerk) return;
-  if (window.clerkMounted) return; // ⛔ prevents crash
+  if (clerkMounted) return;
 
-  cleanupAuthView();
-  navigateTo("auth-view");
+  clerkMounted = true;
+  root.innerHTML = "";
 
   title.textContent =
     mode === "sign-up" ? "Create your account" : "Welcome back";
+
+  navigateTo("auth-view");
 
   const onSuccess = () => {
     cleanupAuthView();
@@ -59,11 +62,11 @@ window.openAuthPage = function (mode) {
     navigateTo("dashboard-view");
   };
 
-  window.clerkMounted = true;
-
-  mode === "sign-up"
-    ? clerk.mountSignUp(root, { afterSignUp: onSuccess })
-    : clerk.mountSignIn(root, { afterSignIn: onSuccess });
+  if (mode === "sign-up") {
+    clerk.mountSignUp(root, { afterSignUp: onSuccess });
+  } else {
+    clerk.mountSignIn(root, { afterSignIn: onSuccess });
+  }
 };
 
 
@@ -79,36 +82,38 @@ window.navigateTo = (viewId) => {
     "profile-view",
   ];
 
-  // 🔐 Block protected routes
+  // 🔐 Auth guard
   if (protectedViews.includes(viewId) && !clerk?.isSignedIn) {
-    cleanupAuthView();
     openAuthPage("sign-in");
     return;
   }
 
-  // 🔥 VERY IMPORTANT: cleanup auth if leaving it
-  if (viewId !== "auth-view") {
+  // 🧹 Clean auth ONLY when leaving auth-view
+  if (
+    document.getElementById("auth-view") &&
+    !document.getElementById("auth-view").classList.contains("hidden") &&
+    viewId !== "auth-view"
+  ) {
     cleanupAuthView();
   }
 
   // Hide all views
   document.querySelectorAll(".view").forEach(v => {
     v.classList.add("hidden");
-    v.style.pointerEvents = "none";
   });
 
-  // Show target
-  const target = document.getElementById(viewId);
-  if (target) {
-    target.classList.remove("hidden");
-    target.style.pointerEvents = "auto";
-  }
+  // Show target view
+  document.getElementById(viewId)?.classList.remove("hidden");
 
   const isProtected = protectedViews.includes(viewId);
 
   document.getElementById("sidebar")?.classList.toggle("hidden", !isProtected);
-  document.getElementById("top-right-controls")?.classList.toggle("hidden", !isProtected);
-  document.getElementById("general-header")?.classList.toggle("hidden", isProtected);
+  document
+    .getElementById("top-right-controls")
+    ?.classList.toggle("hidden", !isProtected);
+  document
+    .getElementById("general-header")
+    ?.classList.toggle("hidden", isProtected);
 };
 
 
