@@ -1,6 +1,9 @@
 /* =========================================================
-   UI + Navigation Logic (NO Firebase)
+   UI + Navigation Logic (NO Firebase INIT HERE)
+   Uses db.js ONLY for data access
 ========================================================= */
+
+import { getUserData } from "./db.js";
 
 const SESSION_KEY = "adatacore_session";
 const THEME_KEY = "adatacore_theme";
@@ -19,7 +22,7 @@ document.getElementById("theme-toggle-btn")?.addEventListener("click", () => {
   );
 });
 
-// ================= LOGO RENDER =================
+/* ================= LOGO RENDER ================= */
 function renderLogo(targetId, size = 140) {
   const el = document.getElementById(targetId);
   if (!el) return;
@@ -48,13 +51,13 @@ function renderLogo(targetId, size = 140) {
     </svg>
   `;
 }
+
 document.addEventListener("DOMContentLoaded", () => {
   renderLogo("landing-logo-large", 160);
   renderLogo("auth-logo-large", 140);
   renderLogo("sidebar-logo-icon", 36);
   renderLogo("mobile-logo-icon", 48);
 });
-
 
 /* ================= AUTH FORM TOGGLE ================= */
 window.toggleAuthForm = function (forceRegister = null) {
@@ -63,10 +66,7 @@ window.toggleAuthForm = function (forceRegister = null) {
   const title = document.getElementById("auth-title");
   const toggleText = document.getElementById("auth-toggle-text");
 
-  if (!loginForm || !registerForm) {
-    console.warn("Auth forms not found");
-    return;
-  }
+  if (!loginForm || !registerForm) return;
 
   const showRegister =
     forceRegister !== null
@@ -91,23 +91,63 @@ window.toggleAuthForm = function (forceRegister = null) {
 };
 
 /* ================= PROFILE UI ================= */
-function updateProfileUI(email) {
+function updateProfileUI(email, uid, role = "User") {
   if (!email) return;
 
   const name = email.split("@")[0].toUpperCase();
 
-  document.getElementById("welcome-username") &&
-    (document.getElementById("welcome-username").textContent = name + "!");
+  // Dashboard greeting
+  const welcome = document.getElementById("welcome-username");
+  if (welcome) welcome.textContent = name + "!";
 
-  document.getElementById("profile-username") &&
-    (document.getElementById("profile-username").textContent = name + " User");
+  // Profile name
+  const profileName = document.getElementById("profile-username");
+  if (profileName) profileName.textContent = name + " User";
 
-  document.getElementById("profile-email-input") &&
-    (document.getElementById("profile-email-input").value = email);
+  // Email field
+  const emailInput = document.getElementById("profile-email-input");
+  if (emailInput) emailInput.value = email;
 
+  // Sidebar name
   const sidebarName = document.getElementById("sidebar-username");
   if (sidebarName) sidebarName.textContent = name;
+
+  // Sidebar UID
+  const sidebarId = document.getElementById("sidebar-userid");
+  if (sidebarId && uid) {
+    sidebarId.textContent = uid.slice(0, 18) + "…";
+sidebarId.title = uid; // full UID on hover
+
+  }
+
+  // ✅ Profile page UID
+  // ✅ Copy UID button
+
+const profileId = document.getElementById("profile-userid");
+if (profileId && uid) {
+  profileId.textContent = uid;
 }
+const copyBtn = document.getElementById("copy-uid-btn");
+if (copyBtn && uid) {
+  copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(uid);
+      copyBtn.textContent = "✔";
+      setTimeout(() => (copyBtn.textContent = "📋"), 1200);
+    } catch (err) {
+      alert("Failed to copy UID");
+    }
+  };
+}
+
+
+  // ✅ Profile page role
+  const profileRole = document.getElementById("profile-role");
+  if (profileRole) {
+    profileRole.textContent = role;
+  }
+}
+
 
 /* ================= NAVIGATION ================= */
 window.navigateTo = (viewId) => {
@@ -153,14 +193,32 @@ function initThreeDotMenu() {
 }
 
 /* ================= AUTH EVENTS ================= */
-document.addEventListener("auth:login", (e) => {
-  const email = e.detail.email;
+document.addEventListener("auth:login", async (e) => {
+  const { uid, email } = e.detail;
+
   localStorage.setItem(SESSION_KEY, "authenticated");
 
-  updateProfileUI(email);
+  // ✅ get user data FIRST (for role, stats)
+  const data = await getUserData(uid);
+
+  // ✅ PASS uid (THIS WAS MISSING)
+  updateProfileUI(email, uid, data?.role || "User");
+
   navigateTo("dashboard-view");
   initThreeDotMenu();
+
+  if (!data || !data.stats) return;
+
+  document.querySelector(".border-cyan-500 p").textContent =
+    `$${data.stats.pendingEarnings.toFixed(2)}`;
+
+  document.querySelector(".border-green-500 p").textContent =
+    `$${data.stats.totalEarnings.toFixed(2)}`;
+
+  document.querySelector(".border-pink-500 p").textContent =
+    `${data.stats.qualityScore}%`;
 });
+
 
 document.addEventListener("auth:logout", () => {
   localStorage.removeItem(SESSION_KEY);
