@@ -2,7 +2,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-
+import {
+  getDatabase
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 const firebaseConfig = {
   apiKey: "AIzaSyBiqfcCEbTuoonEPbf0FzAuD5P2GWwmTJU",
   authDomain: "adatacorea-d9cd8.firebaseapp.com",
@@ -12,6 +14,16 @@ const firebaseConfig = {
   appId: "1:373933302640:web:0dbc718f0c355f011ee5b5"
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+
+// ✅ OLD STYLE GLOBALS (your project expects these)
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window.firebaseApp = app;
+window.firebaseAuth = auth;
+window.db = db;
+window.rtdb = getDatabase(app);
+
+// ✅ also export (safe if you ever import)
+export { app, auth, db };
