@@ -94,23 +94,17 @@ window.toggleAuthForm = function (forceRegister = null) {
 function updateProfileUI(email, uid, role = "User") {
   if (!email) return;
 
-  const name = email.split("@")[0].toUpperCase();
+  const storedName = localStorage.getItem("displayName");
+  const name = storedName || email.split("@")[0].toUpperCase();
 
-  // Dashboard greeting
-  const welcome = document.getElementById("welcome-username");
-  if (welcome) welcome.textContent = name + "!";
+  document.getElementById("welcome-username") &&
+    (document.getElementById("welcome-username").textContent = name + "!");
 
-  // Profile name
-  const profileName = document.getElementById("profile-username");
-  if (profileName) profileName.textContent = name + " User";
+  document.getElementById("profile-username") &&
+    (document.getElementById("profile-username").textContent = name);
 
-  // Email field
-  const emailInput = document.getElementById("profile-email-input");
-  if (emailInput) emailInput.value = email;
-
-  // Sidebar name
-  const sidebarName = document.getElementById("sidebar-username");
-  if (sidebarName) sidebarName.textContent = name;
+  document.getElementById("sidebar-username") &&
+    (document.getElementById("sidebar-username").textContent = name);
 
   // Sidebar UID
   const sidebarId = document.getElementById("sidebar-userid");
@@ -230,3 +224,12 @@ document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   navigateTo("landing-view");
 });
+
+
+window.saveProfile = function () {
+  const nameInput = document.getElementById("profile-fullname-input");
+  if (!nameInput) return;
+
+  localStorage.setItem("displayName", nameInput.value.trim());
+  alert("Profile updated");
+};
