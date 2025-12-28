@@ -42,18 +42,40 @@
         </div>
 
         <nav class="flex-grow space-y-3">
-            <a href="#" id="nav-dashboard" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 border border-transparent hover:border-violet-500/30" onclick="window.navigateTo('dashboard-view')">
-                <div class="p-1.5 rounded-lg bg-violet-500/20 mr-3 group-hover:bg-violet-500/30 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                </div>
-                <span class="font-medium">Dashboard</span>
-            </a>
-            <a href="#" id="nav-tasks" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border border-transparent hover:border-amber-500/30" onclick="window.navigateTo('tasks-view')">
-                <div class="p-1.5 rounded-lg bg-amber-500/20 mr-3 group-hover:bg-amber-500/30 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                </div>
-                <span class="font-medium">Active Contracts</span>
-            </a>
+            <!-- Dashboard -->
+<a
+  href="#"
+  id="nav-dashboard"
+  class="nav-link flex items-center p-3 rounded-xl transition duration-200 group
+         bg-violet-500/10 text-violet-700 dark:text-violet-300
+         hover:bg-violet-500/20 border border-transparent hover:border-violet-500/30"
+  onclick="window.navigateTo('dashboard-view')"
+>
+  <div class="p-1.5 rounded-lg bg-violet-500/20 mr-3 group-hover:bg-violet-500/30 transition">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+      </path>
+    </svg>
+  </div>
+  <span class="font-medium">Dashboard</span>
+</a>
+
+<!-- Tasks / Active Contracts -->
+<a href="#" id="nav-tasks" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-amber-500/10 text-amber-700 dark:text-amber-300
+         hover:bg-amber-500/20 border border-transparent hover:border-amber-500/30"
+  onclick="window.navigateTo('tasks-view')"
+>
+  <div class="p-1.5 rounded-lg bg-amber-500/20 mr-3 group-hover:bg-amber-500/30 transition">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+      </path>
+    </svg>
+  </div>
+  <span class="font-medium">Active Contracts</span>
+</a>
+
             <a href="#" id="nav-payout" class="nav-link flex items-center p-3 rounded-xl transition duration-200 group bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-500/30" onclick="window.navigateTo('payout-view')">
                 <div class="p-1.5 rounded-lg bg-cyan-500/20 mr-3 group-hover:bg-cyan-500/30 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V9m0 3v2m0 4.5V17m-6 0h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
@@ -262,25 +284,34 @@
                         <p class="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back, <span class="text-violet-600 dark:text-violet-400" id="welcome-username">Tasker!</span></p>
                         <p class="text-gray-600 dark:text-gray-400 text-sm md:text-base">You have 3 high-priority tasks waiting for review.</p>
                     </div>
-                    <button class="mt-4 lg:mt-0 px-6 py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 shadow-lg shadow-violet-500/30 transition duration-300 transform hover:scale-[1.03] active:scale-[0.98]">
-                        Start Next Task
-                    </button>
-                </div>
+                    <button
+    class="px-6 py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition shadow-lg"
+    onclick="handleStartNextTask()"
+  >
+    Start Next Task
+  </button>
+                    </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-cyan-500 cursor-pointer" onclick="window.navigateTo('payout-view')">
                         <svg class="w-8 h-8 text-cyan-600 dark:text-cyan-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V9m0 3v2m0 4.5V17m-6 0h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">$432.27</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Pending Payouts</p>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white"data-metric="pending-earnings">$0.00</p>
+                         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Pending Payouts</p>
                     </div>
+                     <!-- Tasks Completed -->
+  <div class="rounded-2xl p-4 bg-white dark:bg-gray-800 shadow">
+    <p class="text-3xl font-bold text-gray-900 dark:text-white"
+       data-metric="tasks">0</p>
+       <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Tasks Completed</p>
+  </div>
                     <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-pink-500 cursor-pointer" onclick="window.navigateTo('quality-view')">
                         <svg class="w-8 h-8 text-pink-600 dark:text-pink-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.104A9.998 9.998 0 0012 4.54l-1.07-1.782A1 1 0 009.28 2.25l-2.022.45c-.328.074-.633.228-.908.455A9.957 9.957 0 004.54 12c0 5.488 4.093 9.953 9.475 10.74l1.07 1.782a1 1 0 001.782 0l1.07-1.782c5.382-.787 9.475-5.252 9.475-10.74a9.998 9.998 0 00-4.104-5.618z"></path></svg>
-                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">94%</p>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">100%</p>
                         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Average Quality Score</p>
                     </div>
                     <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-green-500 cursor-pointer" onclick="window.navigateTo('history-view')">
                         <svg class="w-8 h-8 text-green-600 dark:text-green-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white">$4,850.15</p>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-white"data-metric="total-earnings">$0.00</p>
                         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Lifetime Earnings</p>
                     </div>
                     <div class="card-hover-animation bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-l-4 border-violet-500 cursor-pointer" onclick="window.navigateTo('profile-view')">
@@ -346,16 +377,19 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Email (Primary)</label>
-                                <input type="email" id="profile-email-input" value="guest@adatacore.com" readonly class="w-full p-3 bg-gray-200 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-gray-700 dark:text-gray-300 cursor-not-allowed">
-                            </div>
+                                <input type="email"
+       id="profile-email-input"
+       readonly
+       class="w-full p-3 bg-gray-200 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-gray-700 dark:text-gray-300 cursor-not-allowed">
+
                         </div>
                         <button class="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition">Save Changes</button>
                     </div>
 
                     <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Security Settings</h3>
-                        <button class="w-full text-left p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-900/20 transition">
-                            Change Password
+                        <button class="w-full text-left p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-900/20 transition" onclick="resetPassword()">
+                            Change Password   
                         </button>
                         <p class="text-xs text-gray-500 dark:text-gray-400">Last Password Change: Nov 15, 2025</p>
                     </div>
@@ -365,23 +399,73 @@
             <div id="payout-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Payouts</h1><div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700"><p class="text-gray-600 dark:text-gray-400">Payout Details Here.</p></div></div>
             <div id="quality-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">My Quality</h1><div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700"><p class="text-gray-600 dark:text-gray-400">Quality Stats Here.</p></div></div>
             <div id="history-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">History</h1><div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700"><p class="text-gray-600 dark:text-gray-400">Transaction History Here.</p></div></div>
-            <div id="tasks-view" class="view hidden p-4 md:p-8"><h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Tasks</h1><div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700"><p class="text-gray-600 dark:text-gray-400">Task List Here.</p></div></div>
-
-        </div>
-    </main>
-
-    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-50 transition-opacity duration-300">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center border-t-4 border-violet-500 transform transition-all scale-100">
-            <h3 id="modal-title" class="text-xl font-bold text-gray-900 dark:text-white mb-3">Notice</h3>
-            <p id="modal-content" class="text-gray-600 dark:text-gray-400 mb-4"></p>
-            <button class="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition" onclick="document.getElementById('message-modal').classList.add('hidden')">Close</button>
-        </div>
+            <div id="tasks-view" class="view hidden p-4 md:p-8"></div>
+        
+            <!-- ✅ TASK WORKSPACE (OVERLAY, NOT A VIEW) -->
+<div
+  id="task-workspace-view"
+class="hidden fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
+>
+  <!-- Header -->
+  <div class="flex items-center justify-between p-4 border-b border-white/10">
+    <div class="flex items-center gap-3">
+      <img src="/favicon.svg" class="w-8 h-8" />
+      <span class="font-semibold text-white">
+        Adatacore Task Workspace
+      </span>
     </div>
-    <script type="module" src="firebase.js"></script>
+
+    <button onclick="safeExitTaskWorkspace()" class="text-white text-xl">
+      ✕
+    </button>
+  </div>
+
+  <!-- Task content -->
+  <div class="p-6">
+    <p id="workspace-task-id" class="text-sm text-white/50 mb-2"></p>
+
+    <p id="task-timer" class="text-sm text-white/60 mb-2">
+      Time: 00:00
+    </p>
+
+    <p id="task-instruction" class="text-white text-lg mb-4"></p>
+
+    <audio id="task-audio" controls class="w-full"></audio>
+
+    <div class="mt-4 flex gap-3">
+      <button
+        id="start-recording-btn"
+        onclick="startRecording()"
+        class="px-4 py-2 bg-emerald-600 text-white rounded-lg"
+      >
+        Start Recording
+      </button>
+
+      <button
+        id="stop-recording-btn"
+        onclick="stopRecording()"
+        class="px-4 py-2 bg-red-600 text-white rounded-lg hidden"
+      >
+        Stop Recording
+      </button>
+    </div>
+
+    <button
+      id="submit-task-btn"
+      onclick="submitAndLoadNextTask()"
+      class="mt-4 px-6 py-3 bg-violet-600 text-white rounded-lg"
+    >
+      Submit & Next
+    </button>
+  </div>
+</div>
+
+ 
+<script type="module" src="firebase.js"></script>
 <script type="module" src="db.js"></script>
 <script type="module" src="auth.js"></script>
+<script type="module" src="tasks.js"></script>
 <script type="module" src="script.js"></script>
-
 
 </body>
 </html>
