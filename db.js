@@ -1,17 +1,25 @@
 // db.js
-import { doc, getDoc, setDoc, serverTimestamp } 
-from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-import { db } from "./firebase.js";
+// ✅ Use the global db your app already uses
+const db = window.db;
 
 export async function ensureUserDocument(user) {
+  if (!user || !user.uid) return;
+
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
     await setDoc(ref, {
-      email: user.email,
-      displayName: user.displayName || user.email.split("@")[0],
+      email: user.email || "",
+      displayName: user.displayName || (user.email ? user.email.split("@")[0] : "User"),
       role: "cb",
       createdAt: serverTimestamp(),
       stats: {
@@ -25,15 +33,14 @@ export async function ensureUserDocument(user) {
       }
     });
   } else {
-    await setDoc(
-      ref,
-      { activity: { lastLogin: serverTimestamp() } },
-      { merge: true }
-    );
+    await updateDoc(ref, {
+      "activity.lastLogin": serverTimestamp()
+    });
   }
 }
 
 export async function getUserData(uid) {
+  if (!uid) return null;
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
   return snap.exists() ? snap.data() : null;
