@@ -406,13 +406,32 @@
   id="task-workspace-view"
   class="hidden fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
 >
-  <!-- Header -->
-  <div class="flex items-center justify-between p-4 sm:p-5 border-b border-white/10">
-    <div class="flex items-center gap-3">
-      <img src="/favicon.svg" class="w-8 h-8" alt="Adatacore" />
-      <div class="leading-tight">
-        <div class="font-semibold text-white">Adatacore Task Workspace</div>
-        <div class="text-xs text-white/50">Audio Task Interface</div>
+  <!-- Header (Task ID + Time moved here) -->
+  <div class="sticky top-0 z-10 flex items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-slate-900/40 backdrop-blur">
+    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+      <img src="/favicon.svg" class="w-8 h-8 shrink-0" alt="Adatacore" />
+
+      <div class="flex items-center gap-4 min-w-0">
+        <!-- Title -->
+        <div class="min-w-0">
+          <div class="font-semibold text-white truncate">Adatacore Task Workspace</div>
+          <div class="text-xs text-white/50 truncate">Audio Task Interface</div>
+        </div>
+
+        <!-- Task meta (LEFT, same line area as header) -->
+        <div class="hidden md:flex items-center gap-3 pl-4 border-l border-white/10">
+          <div
+            id="workspace-task-id"
+            class="text-xs sm:text-sm text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1 whitespace-nowrap"
+          ></div>
+
+          <div
+            id="task-timer"
+            class="text-xs sm:text-sm text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1 whitespace-nowrap"
+          >
+            Time: 00:00
+          </div>
+        </div>
       </div>
     </div>
 
@@ -426,32 +445,27 @@
     </button>
   </div>
 
-  <!-- Body -->
-  <div class="p-4 sm:p-6 lg:p-8">
-    <div class="max-w-4xl mx-auto">
-      <!-- Top meta row -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-        <div class="flex flex-col gap-1">
-          <p id="workspace-task-id" class="text-sm text-white/60"></p>
-          <p id="task-timer" class="text-sm text-white/60">
-            Time: 00:00
-          </p>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <span class="text-xs px-3 py-1 rounded-full bg-white/10 text-white/70 border border-white/10">
-            Status: Ready
-          </span>
-          <span class="text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-500/20">
-            Audio Required
-          </span>
+  <!-- Body (bigger + covers more area) -->
+  <div class="p-4 sm:p-6 lg:p-8 overflow-y-auto" style="height: calc(100vh - 80px);">
+    <div class="max-w-6xl w-full mx-auto">
+      <!-- On small screens show Task/Time under header (still top area, not inside main content) -->
+      <div class="md:hidden flex flex-wrap items-center gap-2 mb-4">
+        <div
+          id="workspace-task-id"
+          class="text-xs text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1"
+        ></div>
+        <div
+          id="task-timer"
+          class="text-xs text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1"
+        >
+          Time: 00:00
         </div>
       </div>
 
-      <!-- Main card -->
+      <!-- Main card (larger) -->
       <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl overflow-hidden">
-        <!-- Instruction block -->
-        <div class="p-5 sm:p-6 border-b border-white/10">
+        <!-- Instruction -->
+        <div class="p-6 sm:p-7 border-b border-white/10">
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1">
               <div class="text-xs uppercase tracking-wider text-white/50 mb-2">
@@ -462,17 +476,17 @@
 
             <div class="hidden sm:flex flex-col items-end gap-2">
               <div class="text-xs text-white/50">Tips</div>
-              <div class="text-xs text-white/60 text-right max-w-[220px]">
+              <div class="text-xs text-white/60 text-right max-w-[240px]">
                 Use clear speech, minimal background noise, and complete the response before submitting.
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Audio player + recording area -->
-        <div class="p-5 sm:p-6">
-          <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <!-- Audio source -->
+        <!-- Content -->
+        <div class="p-6 sm:p-7">
+          <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <!-- Reference Audio -->
             <div class="lg:col-span-3">
               <div class="text-xs uppercase tracking-wider text-white/50 mb-2">
                 Reference Audio
@@ -482,13 +496,12 @@
                 <audio id="task-audio" controls class="w-full"></audio>
               </div>
 
-              <!-- Optional visual placeholder (non-functional) -->
-              <div class="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+              <div class="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-xs text-white/60">Waveform Preview</span>
                   <span class="text-xs text-white/40">Visual only</span>
                 </div>
-                <div class="h-12 w-full rounded-lg bg-gradient-to-r from-white/10 via-white/5 to-white/10"></div>
+                <div class="h-14 w-full rounded-lg bg-gradient-to-r from-white/10 via-white/5 to-white/10"></div>
               </div>
             </div>
 
@@ -524,7 +537,6 @@
                 </div>
               </div>
 
-              <!-- Submit -->
               <button
                 id="submit-task-btn"
                 onclick="submitAndLoadNextTask()"
@@ -540,8 +552,8 @@
           </div>
         </div>
 
-        <!-- Footer bar -->
-        <div class="px-5 sm:px-6 py-4 border-t border-white/10 bg-black/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <!-- Footer -->
+        <div class="px-6 sm:px-7 py-4 border-t border-white/10 bg-black/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div class="text-xs text-white/50">
             Make sure your mic permission is enabled in the browser.
           </div>
@@ -553,6 +565,7 @@
     </div>
   </div>
 </div>
+
  
 <script type="module" src="firebase.js"></script>
 <script type="module" src="db.js"></script>
