@@ -1,301 +1,292 @@
 // ================================================================
-// tasks.js (FIXED – Workspace visibility & flow + Firestore + Apps Script)
+// tasks.js (SHEET-ONLY SOURCE OF TRUTH) ✅
+// - Stats/Earnings/Payouts: ONLY from Apps Script (secure via idToken)
+// - Firestore: only optional profile doc users/{uid}
 // ================================================================
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  increment,
-  serverTimestamp,
-  onSnapshot
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-
+import { doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbwZyjFFPwHkNNTriYNSdWPPkH4gB5wNKgsvrzpYW3-xhb1y9wMnufZCHA6elZYLtYJY/exec";
+  "https://script.google.com/macros/s/AKfycbxWohvXhaVcCHACcEXAMgOcG0Kus85DgXbIRD5VTVUygEWa8TnUhfAKARNFB_qnBhIn/exec";
 
+// -------------------- State --------------------
 let currentTask = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let taskStartTime = null;
-let taskActive = false;
-let hasUnsavedProgress = false;
 let taskTimerInterval = null;
+let micStream = null;
 
-// ✅ HARD FIX: ensure overlay is not trapped inside transformed/overflow parents
+// ✅ Overlay hard-fix
 (function ensureWorkspaceOnBody() {
   const ws = document.getElementById("task-workspace-view");
   if (!ws) return;
-
-  if (ws.parentElement !== document.body) {
-    document.body.appendChild(ws);
-  }
-
+  if (ws.parentElement !== document.body) document.body.appendChild(ws);
   ws.style.position = "fixed";
   ws.style.inset = "0";
   ws.style.zIndex = "2147483647";
 })();
 
 // ================================================================
-// FIRESTORE HELPERS
+// Small helpers
 // ================================================================
+function $(id) { return document.getElementById(id); }
 
+function setAllById(id, text) {
+  document.querySelectorAll(`#${CSS.escape(id)}`).forEach(el => (el.textContent = text));
+}
 
+function hideAllViews() {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+}
+function showSidebar() { $("sidebar")?.classList.remove("hidden"); }
+function hideSidebar() { $("sidebar")?.classList.add("hidden"); }
+
+function showWorkspace() {
+  const ws = $("task-workspace-view");
+  if (!ws) return;
+  hideAllViews();
+  hideSidebar();
+  ws.classList.remove("hidden");
+  ws.style.display = "block";
+  document.body.classList.add("overflow-hidden");
+}
+
+function hideWorkspace() {
+  const ws = $("task-workspace-view");
+  if (!ws) return;
+  ws.classList.add("hidden");
+  ws.style.display = "none";
+  document.body.classList.remove("overflow-hidden");
+}
+
+function forceShowDashboard() {
+  hideAllViews();
+  $("dashboard-view")?.classList.remove("hidden");
+  showSidebar();
+  hideWorkspace();
+}
+
+// ================================================================
+// API: call Apps Script securely (POST-only) ✅
+// ================================================================
+async function callApi(action, extra = {}) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) throw new Error("Not signed in");
+
+  const idToken = await user.getIdToken();
+
+  const body = new URLSearchParams({ action, idToken, ...extra });
+  const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body });
+
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("Apps Script returned non-JSON (deployment/access issue). First 200 chars:\n" + text.slice(0, 200));
+  }
+
+  if (!json.ok) throw new Error(json.error || "Request failed");
+  return json;
+}
+
+// ================================================================
+// Firestore profile doc (optional / safe)
+// ================================================================
 async function ensureUserDoc(user) {
-  // ✅ HARD GUARD
-  if (!user || !user.uid) {
-    console.warn("ensureUserDoc called without a signed-in user yet:", user);
-    return;
-  }
-  if (!window.db) {
-    console.warn("Firestore (window.db) not ready yet");
-    return;
-  }
+  if (!user || !window.db) return;
 
   const userRef = doc(window.db, "users", user.uid);
   const snap = await getDoc(userRef);
 
+  const displayName = user.displayName || (user.email ? user.email.split("@")[0] : "User");
+
   if (!snap.exists()) {
     await setDoc(userRef, {
-      displayName: user.displayName || (user.email ? user.email.split("@")[0] : "User"),
+      displayName,
       email: user.email || "",
+      photoURL: user.photoURL || "",
       role: "cb",
-      stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0 },
+      stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0, paidEarnings: 0 },
+      activity: { lastLogin: serverTimestamp() },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
   } else {
-    // ✅ update only meta (NO stats reset)
     await setDoc(userRef, {
-      displayName: user.displayName || (user.email ? user.email.split("@")[0] : "User"),
+      displayName,
       email: user.email || "",
-      role: "cb",
+      photoURL: user.photoURL || "",
+      activity: { lastLogin: serverTimestamp() },
       updatedAt: serverTimestamp()
     }, { merge: true });
   }
 }
 
+// ================================================================
+// Dashboard (Sheet-only stats) ✅
+// ================================================================
+async function refreshDashboardFromSheet() {
+  try {
+    const data = await callApi("getUserDashboardData"); // ✅ POST with idToken
+    const stats = data.stats || {};
 
+    const tasksEl = document.querySelector('[data-metric="tasks"]');
+    const totalEl = document.querySelector('[data-metric="total-earnings"]');
+    const pendingEl = document.querySelector('[data-metric="pending-earnings"]');
 
-function startDashboardLive(uid) {
-  const userRef = doc(window.db, "users", uid);
-
-  return onSnapshot(userRef, (snap) => {
-    if (!snap.exists()) return;
-
-    const stats = snap.data().stats || {};
-    document.querySelector("[data-metric='tasks']").textContent =
-      stats.tasksCompleted || 0;
-
-    document.querySelector("[data-metric='total-earnings']").textContent =
-      `$${Number(stats.totalEarnings || 0).toFixed(2)}`;
-
-    document.querySelector("[data-metric='pending-earnings']").textContent =
-      `$${Number(stats.pendingEarnings || 0).toFixed(2)}`;
-  });
+    if (tasksEl) tasksEl.textContent = stats.tasksCompleted || 0;
+    if (totalEl) totalEl.textContent = `$${Number(stats.totalEarnings || 0).toFixed(2)}`;
+    if (pendingEl) pendingEl.textContent = `$${Number(stats.pendingEarnings || 0).toFixed(2)}`;
+  } catch (e) {
+    console.warn("Dashboard fetch failed:", e);
+  }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  const wait = setInterval(() => {
-    if (window.firebaseAuth && window.db) {
-      clearInterval(wait);
-
-      onAuthStateChanged(window.firebaseAuth, async (user) => {
-        if (!user) return;
-
-        await ensureUserDoc(user);        // ✅ always pass user
-        startDashboardLive(user.uid);     // ✅ or startDashboardLive(user)
-      });
-    }
-  }, 50);
-});
-;
-
-
-
 
 // ================================================================
-// DASHBOARD → START NEXT TASK
+// Earnings page (Sheet rows) ✅
 // ================================================================
-window.handleStartNextTask = async function () {
-  console.log("✅ Start Task clicked (NEW SYSTEM)");
-
+window.openEarningsPage = async function () {
   const user = window.firebaseAuth?.currentUser;
-  if (!user) {
-    alert("Not logged in");
-    return;
-  }
+  if (!user) return;
+
+  const rowsEl = $("earnings-rows");
+  const emptyEl = $("earnings-empty");
+  if (!rowsEl) return;
+
+  rowsEl.innerHTML = "";
+  emptyEl?.classList.add("hidden");
 
   try {
-    await assignAndRenderTask();
-  } catch (err) {
-    console.error("❌ Failed to start task:", err);
+    const data = await callApi("getUserEarnings", { limit: "50" });
+    const rows = data.rows || [];
+
+    if (!rows.length) {
+      emptyEl?.classList.remove("hidden");
+      return;
+    }
+
+    for (const r of rows) {
+      const when = r.timestamp ? new Date(r.timestamp).toLocaleString() : "-";
+      const tr = document.createElement("tr");
+      tr.className = "border-b border-white/10";
+      tr.innerHTML = `
+        <td class="py-2 px-2 text-white/70 text-xs">${user.uid}</td>
+        <td class="py-2 px-2 text-white text-sm font-medium">${r.taskId || "-"}</td>
+        <td class="py-2 px-2 text-white/70 text-xs">${when}</td>
+        <td class="py-2 px-2 text-white font-semibold">$${Number(r.earnings || 0).toFixed(2)}</td>
+      `;
+      rowsEl.appendChild(tr);
+    }
+  } catch (e) {
+    console.error("Earnings fetch failed:", e);
+    emptyEl?.classList.remove("hidden");
   }
 };
 
 // ================================================================
-// FETCH + SHOW TASK
+// Payout History (optional, Sheet rows)
 // ================================================================
+
+window.openPayoutHistoryPage = async function () {
+  const rowsEl = $("payout-rows");
+  const emptyEl = $("payout-empty");
+  if (!rowsEl) return;
+
+  rowsEl.innerHTML = "";
+  emptyEl?.classList.add("hidden");
+
+  try {
+    const data = await callApi("getUserPayouts", { limit: "50" });
+    const rows = data.rows || [];
+
+    if (!rows.length) {
+      emptyEl?.classList.remove("hidden");
+      return;
+    }
+
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      tr.className = "border-b border-white/10";
+      tr.innerHTML = `
+        <td class="py-2 px-2 text-white text-sm font-medium">${r.weekKey || "-"}</td>
+        <td class="py-2 px-2 text-white/70 text-xs">${r.paidAt || "-"}</td>
+        <td class="py-2 px-2 text-white font-semibold">$${Number(r.amountPaid || 0).toFixed(2)}</td>
+        <td class="py-2 px-2 text-white/60 text-xs">${r.paidBy || "-"}</td>
+      `;
+      rowsEl.appendChild(tr);
+    }
+  } catch (e) {
+    console.error("Payouts fetch failed:", e);
+    emptyEl?.classList.remove("hidden");
+  }
+};
+
+// ================================================================
+// TASK FLOW
+// ================================================================
+window.handleStartNextTask = async function () {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return alert("Not logged in");
+  await assignAndRenderTask();
+};
+
 async function assignAndRenderTask() {
-  console.log("📡 Fetching task...");
+  try {
+    const json = await callApi("assignAudioTask");
+    currentTask = json.task;
+    if (!currentTask) throw new Error("No task returned");
 
-  const user = window.firebaseAuth.currentUser;
-  const idToken = await user.getIdToken();
-
-  const params = new URLSearchParams({
-    action: "assignAudioTask",
-    idToken
-  });
-
-  const res = await fetch(APPS_SCRIPT_URL + "?" + params.toString(), {
-    method: "POST"
-  });
-
-  const data = await res.json();
-  console.log("📦 Apps Script response:", data);
-
-  if (!data.ok) {
-    alert(data.error || "No task available");
+    showWorkspace();
+    renderTaskWorkspace(currentTask);
+  } catch (e) {
+    console.error("Assign task error:", e);
+    alert(e.message || "No task available");
     forceShowDashboard();
-    return;
   }
-
-  hideAllViews();
-  hideSidebar();
-  showWorkspace();
-
-  currentTask = data.task;
-  renderTaskWorkspace(currentTask);
 }
 
 // ================================================================
-// UI HELPERS
+// WORKSPACE RENDER
 // ================================================================
-function hideAllViews() {
-  document.querySelectorAll(".view").forEach((v) => v.classList.add("hidden"));
-}
+function renderTaskWorkspace(task) {
+  const instructionEl = $("task-instruction");
+  const audioEl = $("task-audio");
+  if (!instructionEl || !audioEl) return;
 
-function hideSidebar() {
-  document.getElementById("sidebar")?.classList.add("hidden");
-}
+  setAllById("workspace-task-id", `Task ID: ${task.taskId}`);
+  setAllById("task-timer", "Time: 00:00");
 
-function showWorkspace() {
-  const ws = document.getElementById("task-workspace-view");
-  if (!ws) {
-    console.error("workspace not found");
-    return;
-  }
-
-  document.querySelectorAll(".view").forEach((v) => v.classList.add("hidden"));
-
-  ws.classList.remove("hidden");
-  ws.classList.add("block");
-
-  document.getElementById("sidebar")?.classList.add("hidden");
-
-  console.log("✅ Workspace forced visible");
-}
-
-// ================================================================
-// RENDER TASK
-// ================================================================
-window.renderTaskWorkspace = function (task) {
-  console.log("🧩 Rendering task to UI:", task);
-
-  const ws = document.getElementById("task-workspace-view");
-  const taskIdEl = document.getElementById("workspace-task-id");
-  const instructionEl = document.getElementById("task-instruction");
-  const audioEl = document.getElementById("task-audio");
-
-  if (!ws || !taskIdEl || !instructionEl || !audioEl) {
-    console.error("❌ Task workspace elements missing", {
-      ws,
-      taskIdEl,
-      instructionEl,
-      audioEl
-    });
-    return;
-  }
-
-  ws.classList.remove("hidden");
-  ws.style.display = "block";
-  ws.style.visibility = "visible";
-  ws.style.opacity = "1";
-  ws.style.pointerEvents = "auto";
-
-  taskIdEl.textContent = `Task ID: ${task.taskId}`;
   instructionEl.textContent = task.instruction || "";
 
   audioEl.pause();
   audioEl.src = task.audioUrl || "";
   audioEl.load();
 
-  currentTask = task;
-  taskActive = true;
-  hasUnsavedProgress = true;
+  audioChunks = [];
   taskStartTime = Date.now();
-
   startTaskTimer();
-  startAutosave();
-
-  console.log("✅ Task rendered successfully");
-};
+}
 
 // ================================================================
 // TIMER
 // ================================================================
 function startTaskTimer() {
-  taskStartTime = Date.now();
-
   if (taskTimerInterval) clearInterval(taskTimerInterval);
-
   taskTimerInterval = setInterval(() => {
+    if (!taskStartTime) return;
     const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
     const min = String(Math.floor(elapsed / 60)).padStart(2, "0");
     const sec = String(elapsed % 60).padStart(2, "0");
-
-    const el = document.getElementById("task-timer");
-    if (el) el.textContent = `Time: ${min}:${sec}`;
+    setAllById("task-timer", `Time: ${min}:${sec}`);
   }, 1000);
 }
-
-// ================================================================
-// EXIT / DASHBOARD
-// ================================================================
-window.safeExitTaskWorkspace = function () {
-  console.log("🚪 Workspace closing");
-
-  const workspace = document.getElementById("task-workspace-view");
-  if (workspace) {
-    workspace.classList.add("hidden");
-    workspace.style.display = "none";
-  }
-
-  currentTask = null;
-  taskActive = false;
-  hasUnsavedProgress = false;
-
-  if (typeof stopAutosave === "function") stopAutosave();
-
-  if (typeof window.navigateTo === "function") {
-    window.navigateTo("dashboard-view");
-  }
-
-  console.log("✅ Workspace closed safely");
-};
-
-function forceShowDashboard() {
-  document.querySelectorAll(".view").forEach((v) => v.classList.add("hidden"));
-
-  document.getElementById("dashboard-view")?.classList.remove("hidden");
-  document.getElementById("sidebar")?.classList.remove("hidden");
-  document.getElementById("task-workspace-view")?.classList.add("hidden");
-
-  document.body.classList.remove("overflow-hidden");
-  console.log("🏠 Dashboard restored");
+function stopTaskTimer() {
+  if (taskTimerInterval) clearInterval(taskTimerInterval);
+  taskTimerInterval = null;
 }
 
 // ================================================================
@@ -304,184 +295,129 @@ function forceShowDashboard() {
 window.startRecording = async function () {
   try {
     audioChunks = [];
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    mediaRecorder = new MediaRecorder(micStream, { mimeType: "audio/webm" });
 
     mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data);
+      if (e.data && e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      micStream?.getTracks()?.forEach(t => t.stop());
+      micStream = null;
     };
 
     mediaRecorder.start();
-    document.getElementById("start-recording-btn")?.classList.add("hidden");
-    document.getElementById("stop-recording-btn")?.classList.remove("hidden");
-  } catch (err) {
-    alert("Microphone permission denied");
+
+    $("start-recording-btn")?.classList.add("hidden");
+    $("stop-recording-btn")?.classList.remove("hidden");
+  } catch (e) {
+    console.error(e);
+    alert("Mic permission denied or not available.");
   }
 };
 
 window.stopRecording = function () {
   if (!mediaRecorder) return;
-  mediaRecorder.stop();
+  if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
 
-  document.getElementById("stop-recording-btn")?.classList.add("hidden");
-  document.getElementById("start-recording-btn")?.classList.remove("hidden");
+  $("stop-recording-btn")?.classList.add("hidden");
+  $("start-recording-btn")?.classList.remove("hidden");
 };
 
 // ================================================================
-// AUTOSAVE
+// EXIT WORKSPACE
 // ================================================================
-let autosaveInterval = null;
+window.safeExitTaskWorkspace = function () {
+  try {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+  } catch {}
 
-function startAutosave() {
-  stopAutosave();
-  autosaveInterval = setInterval(() => {
-    console.log("💾 Autosaving...");
-  }, 15000);
-}
+  micStream?.getTracks()?.forEach(t => t.stop());
+  micStream = null;
 
-function stopAutosave() {
-  if (autosaveInterval) {
-    clearInterval(autosaveInterval);
-    autosaveInterval = null;
-  }
-}
+  stopTaskTimer();
 
-window.addEventListener("beforeunload", (e) => {
-  if (taskActive && hasUnsavedProgress) {
-    e.preventDefault();
-    e.returnValue = "";
-  }
-});
+  currentTask = null;
+  audioChunks = [];
+  taskStartTime = null;
+
+  forceShowDashboard();
+  refreshDashboardFromSheet();
+};
 
 // ================================================================
-// SUBMIT + LOAD NEXT TASK (Apps Script first, then Firestore)
+// SUBMIT + NEXT (earnings computed server-side in Apps Script) ✅
 // ================================================================
 window.submitAndLoadNextTask = async function () {
-  if (!currentTask) {
-    alert("No active task");
-    return;
-  }
-
-  stopAutosave();
-
-  const user = window.firebaseAuth?.currentUser;
-  const db = window.db;
-  if (!user || !db) {
-    alert("Not logged in / DB not ready");
-    return;
-  }
-
-  const uid = user.uid;
-  const idToken = await user.getIdToken();
+  if (!currentTask) return alert("No active task");
 
   const taskId = currentTask.taskId;
   const durationSec = Math.floor((Date.now() - taskStartTime) / 1000);
 
   if (!audioChunks || audioChunks.length === 0) {
-    alert("No recording found");
-    return;
+    return alert("No recording found. Please record before submitting.");
   }
 
-  // 🎙️ AUDIO → BASE64
   const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
   const audioBase64 = await blobToBase64(audioBlob);
 
-  // 💰 PAY CALC (local)
-  const HOURLY_RATE = 7.5;
-  const earningsRounded = Number(((durationSec / 3600) * HOURLY_RATE).toFixed(2));
-  console.log("💰 Earnings (local):", earningsRounded);
-
-  // 🚀 SEND TO APPS SCRIPT (Sheet + Drive)
-  const params = new URLSearchParams({
-    action: "submitAudioTask",
-    idToken,
-    taskId,
-    durationSec: String(durationSec),
-    mimeType: "audio/webm",
-    audioBase64,
-    earnings: earningsRounded.toString()
-  });
-
-  let data;
   try {
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      body: params
+    const json = await callApi("submitAudioTask", {
+      taskId,
+      durationSec: String(durationSec),
+      mimeType: "audio/webm",
+      audioBase64
     });
 
-    const text = await response.text();
-    data = JSON.parse(text);
-  } catch (err) {
-    console.error("❌ Submit failed:", err);
-    alert("Submit failed (network/server error)");
-    return;
+    const earned = Number(json.result?.earnings || 0).toFixed(2);
+    alert(`✅ Submitted!\nEarned: $${earned}`);
+
+    stopTaskTimer();
+    audioChunks = [];
+    currentTask = null;
+    taskStartTime = null;
+
+    await refreshDashboardFromSheet();
+    await assignAndRenderTask();
+  } catch (e) {
+    console.error("Submit error:", e);
+    alert(e.message || "Submit failed");
   }
-
-  console.log("📦 Submit response:", data);
-
-  if (!data?.ok) {
-    alert(data?.error || "Submit failed");
-    return;
-  }
-
-  // Prefer backend earnings if present
-  const earned = Number((data.result?.earnings ?? earningsRounded) || 0);
-  const earnedFixed = Number(earned.toFixed(2));
-
-  alert(`✅ Task submitted!\nYou earned $${earnedFixed}`);
-
-  // ✅ Firestore writes
-  try {
-    // Ensure user doc exists (so updateDoc won't fail)
-    await ensureUserDoc();
-
-    // 1) Log submission
-    await setDoc(
-      doc(db, "taskSubmissions", `${uid}_${taskId}`),
-      {
-        uid,
-        taskId,
-        durationSec,
-        earnings: earnedFixed,
-        driveUrl: data.result?.driveUrl || "",
-        status: "submitted",
-        submittedAt: serverTimestamp()
-      },
-      { merge: true }
-    );
-
-    // 2) Increment user stats (single update)
-    await updateDoc(doc(db, "users", uid), {
-      "stats.tasksCompleted": increment(1),
-      "stats.totalEarnings": increment(earnedFixed),
-      "stats.pendingEarnings": increment(earnedFixed),
-      updatedAt: serverTimestamp()
-    });
-
-    console.log("✅ Firestore updated (users + taskSubmissions)");
-  } catch (err) {
-    console.error("❌ Firestore update failed:", err);
-    alert("Task saved to Sheet/Drive, but Firestore update failed.");
-    // Continue anyway
-  }
-
-  // RESET + NEXT TASK
-  audioChunks = [];
-  currentTask = null;
-  taskActive = false;
-  hasUnsavedProgress = false;
-
-  await assignAndRenderTask();
 };
 
 // ================================================================
-// HELPER: Convert Blob → Base64
+// Helpers
 // ================================================================
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(",")[1]);
-    reader.onerror = (error) => reject(error);
+    reader.onloadend = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
 }
+
+// ================================================================
+// AUTH BOOTSTRAP
+// ================================================================
+(function initAuth() {
+  const wait = setInterval(() => {
+    if (!window.firebaseAuth) return;
+
+    clearInterval(wait);
+
+    onAuthStateChanged(window.firebaseAuth, async (user) => {
+      if (!user) return;
+
+      // Firestore is optional
+      if (window.db) {
+        try { await ensureUserDoc(user); } catch (e) { console.warn("ensureUserDoc failed:", e); }
+      }
+
+      await refreshDashboardFromSheet(); // ✅ always run
+    });
+  }, 50);
+})();
+
