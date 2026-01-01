@@ -1,4 +1,8 @@
-// script.js
+/* =========================================================
+   UI + Navigation Logic (NO Firebase INIT HERE)
+   Uses db.js ONLY for data access
+========================================================= */
+
 import { getUserData } from "./db.js";
 
 const SESSION_KEY = "adatacore_session";
@@ -12,18 +16,28 @@ function initTheme() {
 
 document.getElementById("theme-toggle-btn")?.addEventListener("click", () => {
   document.documentElement.classList.toggle("dark");
-  localStorage.setItem(THEME_KEY, document.documentElement.classList.contains("dark") ? "dark" : "light");
+  localStorage.setItem(
+    THEME_KEY,
+    document.documentElement.classList.contains("dark") ? "dark" : "light"
+  );
 });
 
 /* ================= LOGO RENDER ================= */
 function renderLogo(targetId, size = 140) {
   const el = document.getElementById(targetId);
   if (!el) return;
+
   el.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 380" width="${size}" height="${size}">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 400 380"
+         width="${size}"
+         height="${size}"
+         aria-label="Adatacore Logo">
       <defs>
         <linearGradient id="g-${targetId}" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#3b82f6"/><stop offset="50%" stop-color="#a855f7"/><stop offset="100%" stop-color="#ec4899"/>
+          <stop offset="0%" stop-color="#3b82f6"/>
+          <stop offset="50%" stop-color="#a855f7"/>
+          <stop offset="100%" stop-color="#ec4899"/>
         </linearGradient>
       </defs>
       <g transform="translate(200, 190)">
@@ -34,8 +48,16 @@ function renderLogo(targetId, size = 140) {
         </g>
         <circle cx="0" cy="0" r="60" fill="none" stroke="#ec4899" stroke-width="15"/>
       </g>
-    </svg>`;
+    </svg>
+  `;
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderLogo("landing-logo-large", 160);
+  renderLogo("auth-logo-large", 140);
+  renderLogo("sidebar-logo-icon", 36);
+  renderLogo("mobile-logo-icon", 48);
+});
 
 /* ================= AUTH FORM TOGGLE ================= */
 window.toggleAuthForm = function (forceRegister = null) {
@@ -45,50 +67,131 @@ window.toggleAuthForm = function (forceRegister = null) {
   const toggleText = document.getElementById("auth-toggle-text");
 
   if (!loginForm || !registerForm) return;
-  const showRegister = forceRegister !== null ? forceRegister : registerForm.classList.contains("hidden");
+
+  const showRegister =
+    forceRegister !== null
+      ? forceRegister
+      : registerForm.classList.contains("hidden");
 
   if (showRegister) {
     loginForm.classList.add("hidden");
     registerForm.classList.remove("hidden");
     title.textContent = "Create Account";
-    toggleText.innerHTML = `Already have an account? <button class="text-violet-600 font-medium" onclick="window.toggleAuthForm(false)">Log In</button>`;
+    toggleText.innerHTML =
+      `Already have an account?
+       <button class="text-violet-600 font-medium" onclick="window.toggleAuthForm(false)">Log In</button>`;
   } else {
     registerForm.classList.add("hidden");
     loginForm.classList.remove("hidden");
     title.textContent = "Welcome Back";
-    toggleText.innerHTML = `Don't have an account? <button class="text-violet-600 font-medium" onclick="window.toggleAuthForm(true)">Sign Up</button>`;
+    toggleText.innerHTML =
+      `Don't have an account?
+       <button class="text-violet-600 font-medium" onclick="window.toggleAuthForm(true)">Sign Up</button>`;
   }
 };
 
 /* ================= PROFILE UI ================= */
 function updateProfileUI(email, uid, role = "User") {
   if (!email) return;
-  const name = localStorage.getItem("displayName") || email.split("@")[0].toUpperCase();
-  ["welcome-username", "profile-username", "sidebar-username"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = id === "welcome-username" ? name + "!" : name;
-  });
 
+  const storedName = localStorage.getItem("displayName");
+  const name = storedName || email.split("@")[0].toUpperCase();
+
+  document.getElementById("welcome-username") &&
+    (document.getElementById("welcome-username").textContent = name + "!");
+
+  document.getElementById("profile-username") &&
+    (document.getElementById("profile-username").textContent = name);
+
+  document.getElementById("sidebar-username") &&
+    (document.getElementById("sidebar-username").textContent = name);
+
+  // Sidebar UID
   const sidebarId = document.getElementById("sidebar-userid");
   if (sidebarId && uid) {
     sidebarId.textContent = uid.slice(0, 18) + "…";
-    sidebarId.title = uid;
-  }
-  const profileId = document.getElementById("profile-userid");
-  if (profileId) profileId.textContent = uid;
+sidebarId.title = uid; // full UID on hover
 
-  const profileRole = document.getElementById("profile-role");
-  if (profileRole) profileRole.textContent = role;
+  }
+
+  // ✅ Profile page UID
+  // ✅ Copy UID button
+
+const profileId = document.getElementById("profile-userid");
+if (profileId && uid) {
+  profileId.textContent = uid;
 }
+const copyBtn = document.getElementById("copy-uid-btn");
+if (copyBtn && uid) {
+  copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(uid);
+      copyBtn.textContent = "✔";
+      setTimeout(() => (copyBtn.textContent = "📋"), 1200);
+    } catch (err) {
+      alert("Failed to copy UID");
+    }
+  };
+}
+
+
+  // ✅ Profile page role
+  const profileRole = document.getElementById("profile-role");
+  if (profileRole) {
+    profileRole.textContent = role;
+  }
+}
+
 
 /* ================= NAVIGATION ================= */
 window.navigateTo = (viewId) => {
-  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
-  document.getElementById(viewId)?.classList.remove("hidden");
+  // hide all views
+  document.querySelectorAll(".view").forEach(v => {
+    v.classList.add("hidden");
+    v.style.display = ""; // reset inline display if any
+  });
 
+  // find target
+  const target = document.getElementById(viewId);
+
+  if (!target) {
+    console.warn("❌ Missing view:", viewId);
+    return;
+  }
+
+  // ✅ MUST be a view container
+  if (!target.classList.contains("view")) {
+    console.error(
+      `❌ ID "${viewId}" exists but is NOT a .view element.`,
+      "This usually means duplicate IDs (like <a id='earnings-view'>...).",
+      target
+    );
+    return;
+  }
+
+  // show target
+  target.classList.remove("hidden");
+  target.style.display = "block"; // force visible
+
+  // ✅ always hide task workspace overlay
+  const ws = document.getElementById("task-workspace-view");
+  if (ws) {
+    ws.classList.add("hidden");
+    ws.style.display = "none";
+  }
+
+  // sidebar logic
   const sidebar = document.getElementById("sidebar");
   const topRight = document.getElementById("top-right-controls");
-  const protectedViews = ["dashboard-view", "tasks-view", "profile-view", "payout-view", "quality-view", "history-view"];
+
+  const protectedViews = [
+    "dashboard-view",
+    "tasks-view",
+    "profile-view",
+    "payout-view",
+    "quality-view",
+    "earnings-view"
+  ];
 
   if (protectedViews.includes(viewId)) {
     sidebar?.classList.remove("hidden");
@@ -97,36 +200,75 @@ window.navigateTo = (viewId) => {
     sidebar?.classList.add("hidden");
     topRight?.classList.add("hidden");
   }
+
+  // ✅ debug: prove what is visible
+  console.log("✅ navigateTo:", viewId, "=> showing:", target);
+
+  window.scrollTo(0, 0);
 };
+
+
+
+/* ================= 3 DOT MENU ================= */
+function initThreeDotMenu() {
+  const btn = document.getElementById("three-dot-btn");
+  const dropdown = document.getElementById("three-dot-dropdown");
+
+  if (!btn || !dropdown) return;
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("hidden");
+  };
+
+  document.addEventListener("click", () => {
+    dropdown.classList.add("hidden");
+  });
+}
 
 /* ================= AUTH EVENTS ================= */
 document.addEventListener("auth:login", async (e) => {
   const { uid, email } = e.detail;
+
   localStorage.setItem(SESSION_KEY, "authenticated");
+
+  // ✅ get user data FIRST (for role, stats)
   const data = await getUserData(uid);
+
   updateProfileUI(email, uid, data?.role || "User");
-  window.navigateTo("dashboard-view");
+
+  navigateTo("dashboard-view");
+  initThreeDotMenu();
+
+  if (!data || !data.stats) return;
+
+  // ✅ REPLACE the old ".border-xxx p" selectors with these:
+  const pendingEl = document.querySelector('[data-metric="pending-earnings"]');
+  const totalEl = document.querySelector('[data-metric="total-earnings"]');
+  const tasksEl = document.querySelector('[data-metric="tasks"]');
+
+  if (pendingEl) pendingEl.textContent = `$${Number(data.stats.pendingEarnings || 0).toFixed(2)}`;
+  if (totalEl) totalEl.textContent = `$${Number(data.stats.totalEarnings || 0).toFixed(2)}`;
+  if (tasksEl) tasksEl.textContent = Number(data.stats.tasksCompleted || 0);
 });
+
 
 document.addEventListener("auth:logout", () => {
   localStorage.removeItem(SESSION_KEY);
-  window.navigateTo("landing-view");
+  navigateTo("landing-view");
 });
 
 /* ================= INIT ================= */
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  renderLogo("landing-logo-large", 160);
-  renderLogo("auth-logo-large", 140);
-  renderLogo("sidebar-logo-icon", 36);
-  renderLogo("mobile-logo-icon", 48);
-
-  // महत्वपूर्ण: रिफ्रेश होने पर तुरंत लैंडिंग पर न भेजें
-  const isAuth = localStorage.getItem(SESSION_KEY);
-  if (isAuth !== "authenticated") {
-    window.navigateTo("landing-view");
-  } else {
-    console.log("Session found, waiting for Firebase...");
-    // यहाँ आप चाहें तो एक Loading Spinner दिखा सकते हैं
-  }
+  navigateTo("landing-view");
 });
+
+
+window.saveProfile = function () {
+  const nameInput = document.getElementById("profile-fullname-input");
+  if (!nameInput) return;
+
+  localStorage.setItem("displayName", nameInput.value.trim());
+  alert("Profile updated");
+};
