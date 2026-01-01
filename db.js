@@ -1,17 +1,17 @@
 // db.js
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp } 
+  from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-// ✅ Use the global db your app already uses
-const db = window.db;
+import { app } from "./firebase.js"; // ✅ app must be exported from firebase.js
+
+export const db = getFirestore(app);
+
+
+// expose globally only if you still want
+window.firebaseDb = db;
 
 export async function ensureUserDocument(user) {
-  if (!user || !user.uid) return;
+  if (!user?.uid) return;
 
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
@@ -28,14 +28,10 @@ export async function ensureUserDocument(user) {
         qualityScore: 0,
         tasksCompleted: 0
       },
-      activity: {
-        lastLogin: serverTimestamp()
-      }
+      activity: { lastLogin: serverTimestamp() }
     });
   } else {
-    await updateDoc(ref, {
-      "activity.lastLogin": serverTimestamp()
-    });
+    await updateDoc(ref, { "activity.lastLogin": serverTimestamp() });
   }
 }
 
