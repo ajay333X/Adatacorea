@@ -1,52 +1,55 @@
+// ============================
+// CONFIG
+// ============================
 const FIREBASE_WEB_API_KEY = "AIzaSyBiqfcCEbTuoonEPbf0FzAuD5P2GWwmTJU";
 
 const SPREADSHEET_ID = "19QGdrg3bcpEQW-Bz6CI9RGnEzRNvL8hnEgiIMLCwNak";
-const TASKS_SHEET_NAME = "tasks";               // your tasks tab
-const SUBMISSIONS_SHEET_NAME = "Submissions";   // your submissions tab
+const TASKS_SHEET_NAME = "tasks";
+const SUBMISSIONS_SHEET_NAME = "Submissions";
+const PAYOUTS_SHEET_NAME = "payout"; // optional
 const DRIVE_FOLDER_ID = "113LvVjo7JoqCCLFJ6U8BmMu7XC4hAOP7";
 
+// ============================
+// ENTRYPOINTS
+// ============================
 function doGet(e) {
   try {
-    const action = e.parameter.action;
-    let result;
+    const action = String(e.parameter.action || "").trim();
+    const idToken = String(e.parameter.idToken || "").trim();
+
+    if (!action) return json_({ ok: false, error: "Missing action" });
+    if (!idToken) return json_({ ok: false, error: "Missing idToken" });
+
+    const authInfo = verifyFirebaseIdToken_(idToken);
+    const uid = authInfo.uid;
 
     if (action === "getUserDashboardData") {
-      result = getUserDashboardData(e);
-    } else {
-      result = { ok: false, error: "Invalid action" };
+      return json_(getUserDashboardDataByUid_(uid));
     }
 
-    return ContentService
-      .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+    if (action === "getUserEarnings") {
+      const limitN = Number(e.parameter.limit || 50);
+      return json_(getUserEarningsByUid_(uid, limitN));
+    }
+
+    return json_({ ok: false, error: "Invalid action" });
 
   } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        ok: false,
-        error: String(err)
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return json_({ ok: false, error: String(err && err.stack ? err.stack : err) });
   }
 }
-
 
 
 function doPost(e) {
   try {
     let data = {};
-    let params = e && e.parameter ? e.parameter : {};
+    let params = (e && e.parameter) ? e.parameter : {};
 
-    // Try JSON first
     if (e && e.postData && e.postData.contents) {
-      try {
-        data = JSON.parse(e.postData.contents);
-      } catch (err) {
-        data = {}; // ignore, not JSON
-      }
+      try { data = JSON.parse(e.postData.contents); } catch { data = {}; }
     }
 
-    // ✅ ALWAYS MERGE (THIS IS THE KEY FIX)
+    // merge params + json body
     const body = { ...params, ...data };
 
     const action = String(body.action || "").trim();
@@ -55,48 +58,111 @@ function doPost(e) {
     if (!action) return json_({ ok: false, error: "Missing action" });
     if (!idToken) return json_({ ok: false, error: "Missing idToken" });
 
-    const authInfo = verifyFirebaseIdToken_(idToken);
-    const uid = authInfo.uid;
+const authInfo = verifyFirebaseIdToken_(idToken);
+const uid = authInfo.uid;
 
-    if (action === "assignAudioTask") {
-      return json_(assignAudioTask_(uid));
-    }
+if (action === "assignAudioTask") {
+  return json_(assignAudioTask_(uid));
+}
 
-    if (action === "submitAudioTask") {
-      return json_(submitAudioTask_(uid, body)); // ✅ PASS MERGED BODY
-    }
+if (action === "submitAudioTask") {
+  return json_(submitAudioTask_(uid, body));
+}
 
-    if (action === "skipAudioTask") {
-      return json_(skipAudioTask_(uid, body));
-    }
+if (action === "skipAudioTask") {
+  return json_(skipAudioTask_(uid, body));
+}
 
-    return json_({ ok: false, error: "Unknown action" });
+// ✅ ADD THESE HERE (inside doPost)
+if (action === "getUserDashboardData") {
+  return json_(getUserDashboardDataByUid_(uid));
+}
+
+if (action === "getUserEarnings") {
+  const lim = Number(body.limit || 50);
+  return json_(getUserEarningsByUid_(uid, lim));
+}
+
+if (action === "getUserPayouts") {
+  const lim = Number(body.limit || 50);
+  return json_(getUserPayoutsByUid_(uid, lim));
+}
+
+return json_({ ok: false, error: "Unknown action" });
+
   } catch (err) {
-    return json_({
-      ok: false,
-      error: String(err && err.stack ? err.stack : err)
-    });
+    return json_({ ok: false, error: String(err && err.stack ? err.stack : err) });
   }
 }
 
-/**
- * ✅ Expected JSON body:
- * {
- *   action: "submitAudioTask",
- *   idToken: "...",
- *   taskId: "AUDIO_001",
- *   durationSec: 83,
- *   mimeType: "audio/webm",
- *   audioBase64: "...."
- * }
- */
-function submitAudioTask_(uid, body) {
-// 🔍 DEBUG: log exactly what the backend receives
-  Logger.log("BODY RECEIVED: " + JSON.stringify(body));
+// ============================
+// ACTIONS
+// ============================
 
+// Assign: returns existing assigned task OR assigns first available audio task
+function assignAudioTask_(uid) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName(TASKS_SHEET_NAME);
+  if (!sh) return { ok: false, error: `Sheet not found: ${TASKS_SHEET_NAME}` };
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return { ok: false, error: "No tasks in sheet" };
+
+  const idx = idxMap_(values[0]);
+
+  requireHeaders_(idx, ["taskId", "audioUrl", "instruction", "taskType", "status", "assignedTo"]);
+
+  // 1) return already assigned
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const status = norm_(row[idx.status]);
+    const assignedTo = String(row[idx.assignedTo] || "").trim();
+    if (status === "assigned" && assignedTo === String(uid)) {
+      return {
+        ok: true,
+        task: {
+          taskId: String(row[idx.taskId] || "").trim(),
+          audioUrl: String(row[idx.audioUrl] || "").trim(),
+          instruction: String(row[idx.instruction] || "").trim(),
+          taskType: String(row[idx.taskType] || "audio").trim(),
+          pay: idx.pay != null ? Number(row[idx.pay] || 0) : 0
+        }
+      };
+    }
+  }
+
+  // 2) assign first available audio task
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const status = norm_(row[idx.status]);
+    const taskType = norm_(row[idx.taskType] || "audio");
+
+    if (taskType === "audio" && (status === "" || status === "available")) {
+      const now = new Date();
+      sh.getRange(r + 1, idx.status + 1).setValue("assigned");
+      sh.getRange(r + 1, idx.assignedTo + 1).setValue(uid);
+      if (idx.assignedAt != null) sh.getRange(r + 1, idx.assignedAt + 1).setValue(now);
+
+      return {
+        ok: true,
+        task: {
+          taskId: String(row[idx.taskId] || "").trim(),
+          audioUrl: String(row[idx.audioUrl] || "").trim(),
+          instruction: String(row[idx.instruction] || "").trim(),
+          taskType: String(row[idx.taskType] || "audio").trim(),
+          pay: idx.pay != null ? Number(row[idx.pay] || 0) : 0
+        }
+      };
+    }
+  }
+
+  return { ok: false, error: "No available audio tasks" };
+}
+
+// Submit: verify ownership + save audio + compute earnings from tasks sheet "pay"
+function submitAudioTask_(uid, body) {
   const taskId = String(body.taskId || body.taskid || "").trim();
   const durationSec = Number(body.durationSec || body.durationsec || 0);
-  const earnings = Number(body.earnings || 0);
   const mimeType = String(body.mimeType || body.mimetype || "audio/webm");
   const audioBase64 = String(body.audioBase64 || body.audiobase64 || "");
 
@@ -104,8 +170,6 @@ function submitAudioTask_(uid, body) {
   if (!audioBase64) return { ok: false, error: "audioBase64 missing" };
 
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-  // ----- TASKS SHEET -----
   const tasksSheet = ss.getSheetByName(TASKS_SHEET_NAME);
   if (!tasksSheet) return { ok: false, error: `Sheet not found: ${TASKS_SHEET_NAME}` };
 
@@ -113,16 +177,9 @@ function submitAudioTask_(uid, body) {
   if (values.length < 2) return { ok: false, error: "No tasks in sheet" };
 
   const idx = idxMap_(values[0]);
+  requireHeaders_(idx, ["taskId", "status", "assignedTo"]);
 
-  // Validate required columns
-  if (idx.taskId == null || idx.status == null || idx.assignedTo == null) {
-    return {
-      ok: false,
-      error: "Header mismatch. Required headers: taskId, status, assignedTo (check spelling/case)."
-    };
-  }
-
-  // Find task row
+  // find task row
   let rowIndex = -1;
   for (let r = 1; r < values.length; r++) {
     if (String(values[r][idx.taskId]).trim() === taskId) {
@@ -133,14 +190,17 @@ function submitAudioTask_(uid, body) {
   if (rowIndex === -1) return { ok: false, error: "TaskId not found" };
 
   const row = values[rowIndex];
-  const status = String(row[idx.status]).trim();
-  const assignedTo = String(row[idx.assignedTo]).trim();
+  const status = String(row[idx.status] || "").trim();
+  const assignedTo = String(row[idx.assignedTo] || "").trim();
 
-  // Ownership check
   if (status !== "assigned") return { ok: false, error: `Task status is "${status}", not "assigned"` };
   if (assignedTo !== String(uid)) return { ok: false, error: "Task not assigned to this user" };
 
-  // ----- SAVE AUDIO TO DRIVE -----
+  // ✅ Earnings computed server-side from duration
+  const HOURLY_RATE = 7.5;
+  const earnings = Number(((durationSec / 3600) * HOURLY_RATE).toFixed(2));
+
+  // save audio to Drive
   const bytes = Utilities.base64Decode(audioBase64);
   const ext = mimeType.includes("webm") ? "webm" : "bin";
   const fileName = `${uid}_${taskId}_${Date.now()}.${ext}`;
@@ -152,17 +212,15 @@ function submitAudioTask_(uid, body) {
   const driveUrl = file.getUrl();
   const fileId = file.getId();
 
-  // ----- MARK COMPLETED IN TASKS -----
+  // mark completed in tasks
   tasksSheet.getRange(rowIndex + 1, idx.status + 1).setValue("completed");
-  if (idx.completedAt != null) {
-    tasksSheet.getRange(rowIndex + 1, idx.completedAt + 1).setValue(new Date());
-  }
+  if (idx.completedAt != null) tasksSheet.getRange(rowIndex + 1, idx.completedAt + 1).setValue(new Date());
 
-  // ----- SUBMISSIONS SHEET -----
+  // append to submissions sheet (your screenshot matches this schema)
   let sub = ss.getSheetByName(SUBMISSIONS_SHEET_NAME);
   if (!sub) {
     sub = ss.insertSheet(SUBMISSIONS_SHEET_NAME);
-    sub.appendRow(["timestamp", "userId", "taskId", "durationSec", "earnings", "driveFileUrl", "driveFileId", "status"]);
+    sub.appendRow(["timestamp", "userId", "taskId", "durationSec", "earnings", "driveFileUrl", "quality", "status"]);
   }
 
   sub.appendRow([
@@ -172,33 +230,19 @@ function submitAudioTask_(uid, body) {
     durationSec,
     earnings,
     driveUrl,
-    fileId,
+    "",          // quality placeholder
     "submitted"
   ]);
 
-
-return {
-  ok: true,
-  message: "Submitted successfully",
-  result: {
-    taskId,
-    durationSec,
-    driveUrl,
-    fileId,
-    earnings
-  }
-};
-
-  Logger.log("Using spreadsheet: " + SPREADSHEET_ID);
-Logger.log("Looking for taskId: " + taskId);
-
+  return {
+    ok: true,
+    message: "Submitted successfully",
+    result: { taskId, durationSec,earnings, driveUrl, fileId }
+  };
 }
 
-/**
- * ✅ Skip action (no audio upload)
- * Expected JSON:
- * { action:"skipAudioTask", idToken:"...", taskId:"AUDIO_001", reason:"..." }
- */
+
+// Skip: mark skipped (optional reason)
 function skipAudioTask_(uid, body) {
   const taskId = String(body.taskId || "").trim();
   const reason = String(body.reason || "").trim();
@@ -213,9 +257,7 @@ function skipAudioTask_(uid, body) {
   if (values.length < 2) return { ok: false, error: "No tasks in sheet" };
 
   const idx = idxMap_(values[0]);
-  if (idx.taskId == null || idx.status == null || idx.assignedTo == null) {
-    return { ok: false, error: "Header mismatch. Required: taskId, status, assignedTo" };
-  }
+  requireHeaders_(idx, ["taskId", "status", "assignedTo"]);
 
   let rowIndex = -1;
   for (let r = 1; r < values.length; r++) {
@@ -227,97 +269,139 @@ function skipAudioTask_(uid, body) {
   if (rowIndex === -1) return { ok: false, error: "TaskId not found" };
 
   const row = values[rowIndex];
-  const status = String(row[idx.status]).trim();
-  const assignedTo = String(row[idx.assignedTo]).trim();
+  const status = String(row[idx.status] || "").trim();
+  const assignedTo = String(row[idx.assignedTo] || "").trim();
 
   if (status !== "assigned") return { ok: false, error: `Task status is "${status}", not "assigned"` };
   if (assignedTo !== String(uid)) return { ok: false, error: "Task not assigned to this user" };
 
-  // Mark skipped (and free it up if you want)
   tasksSheet.getRange(rowIndex + 1, idx.status + 1).setValue("skipped");
   if (idx.completedAt != null) tasksSheet.getRange(rowIndex + 1, idx.completedAt + 1).setValue(new Date());
 
-  // Optional: store reason if you add a "skipReason" column header
-  if (idx.skipReason != null) {
-    tasksSheet.getRange(rowIndex + 1, idx.skipReason + 1).setValue(reason);
-  }
-
-  // Log in submissions as well (optional)
+  // optionally log
   let sub = ss.getSheetByName(SUBMISSIONS_SHEET_NAME);
   if (!sub) {
     sub = ss.insertSheet(SUBMISSIONS_SHEET_NAME);
-    sub.appendRow(["timestamp", "userId", "taskId", "durationSec", "driveFileUrl", "driveFileId", "status"]);
+    sub.appendRow(["timestamp", "userId", "taskId", "durationSec", "earnings", "driveFileUrl", "driveFileId", "status"]);
   }
+  sub.appendRow([new Date(), uid, taskId, 0, 0, "", "", "skipped"]);
 
-  sub.appendRow([new Date(), uid, taskId, 0, "", "", "skipped"]);
-
-  return { ok: true, message: "Task skipped", taskId };
+  return { ok: true, message: "Task skipped", taskId, reason };
 }
 
-function assignAudioTask_(uid) {
-  const sh = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(TASKS_SHEET_NAME);
-  if (!sh) return { ok: false, error: `Sheet not found: ${TASKS_SHEET_NAME}` };
-
-  const values = sh.getDataRange().getValues();
-  Logger.log(values);
-  if (values.length < 2) return { ok: false, error: "No tasks in sheet" };
-
-  const idx = idxMap_(values[0]);
-
-  // 1) return already assigned
-  for (let r = 1; r < values.length; r++) {
-    const row = values[r];
-    if (String(row[idx.status]).trim() === "assigned" && String(row[idx.assignedTo]).trim() === String(uid)) {
-      return {
-        ok: true,
-        task: {
-          taskId: row[idx.taskId],
-          audioUrl: row[idx.audioUrl],
-          instruction: row[idx.instruction],
-          taskType: row[idx.taskType] || "audio"
-        }
-      };
-    }
+// Dashboard stats (SECURE: uid from token, not from client)
+function getDashboardStats_(uid) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SUBMISSIONS_SHEET_NAME);
+  if (!sheet) {
+    return { ok: true, stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0 } };
   }
 
-  // 2) assign first available
-  for (let r = 1; r < values.length; r++) {
-  const row = values[r];
-
-// ✅ DEFINE isAudio FIRST
-const taskType = String(row[idx.taskType] || "audio").trim().toLowerCase();
-const status = String(row[idx.status] || "").trim().toLowerCase();
-
-if (taskType === "audio" && (status === "" || status === "available")) {
-
-
-  const now = new Date();
-
-  sh.getRange(r + 1, idx.status + 1).setValue("assigned");
-  sh.getRange(r + 1, idx.assignedTo + 1).setValue(uid);
-  if (idx.assignedAt != null) {
-    sh.getRange(r + 1, idx.assignedAt + 1).setValue(now);
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) {
+    return { ok: true, stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0 } };
   }
+
+  const header = headerIndex_(rows[0]);
+  const colUser = header.userid;
+  const colEarn = header.earnings;
+  const colStatus = header.status;
+
+  let tasks = 0;
+  let total = 0;
+  let paid = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (String(r[colUser] || "").trim() !== String(uid)) continue;
+
+    const earn = Number(r[colEarn] || 0);
+    const status = norm_(r[colStatus] || "");
+
+    // Count only submitted/paid as completed tasks
+    if (status === "submitted" || status === "paid") tasks++;
+    total += earn;
+
+    if (status === "paid") paid += earn;
+  }
+
+  total = Number(total.toFixed(2));
+  paid = Number(paid.toFixed(2));
+  const pending = Number((total - paid).toFixed(2));
 
   return {
     ok: true,
-    task: {
-      taskId: row[idx.taskId],
-      audioUrl: row[idx.audioUrl],
-      instruction: row[idx.instruction],
-      taskType: row[idx.taskType] || "audio"
-    }
+    stats: { tasksCompleted: tasks, totalEarnings: total, pendingEarnings: pending }
   };
 }
 
+// Earnings list for current user (last 100)
+function getEarnings_(uid) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SUBMISSIONS_SHEET_NAME);
+  if (!sheet) return { ok: true, rows: [] };
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return { ok: true, rows: [] };
+
+  const header = headerIndex_(rows[0]);
+  const colTs = header.timestamp;
+  const colUser = header.userid;
+  const colTask = header.taskid;
+  const colEarn = header.earnings;
+
+  const out = [];
+  for (let i = rows.length - 1; i >= 1 && out.length < 100; i--) {
+    const r = rows[i];
+    if (String(r[colUser] || "").trim() !== String(uid)) continue;
+
+    out.push({
+      user: uid,
+      taskId: String(r[colTask] || ""),
+      when: r[colTs] ? new Date(r[colTs]).toLocaleString() : "",
+      amount: Number(r[colEarn] || 0)
+    });
   }
 
-  return { ok: false, error: "No available audio tasks" };
+  return { ok: true, rows: out };
 }
 
-function verifyFirebaseIdToken_(idToken) {
-  if (!idToken) throw new Error("Missing idToken");
+// Payout rows (optional sheet)
+function getPayouts_(uid) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(PAYOUTS_SHEET_NAME);
+  if (!sheet) return { ok: true, rows: [] };
 
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return { ok: true, rows: [] };
+
+  const header = headerIndex_(rows[0]);
+  const colPaidAt = header.paidat;
+  const colUser = header.userid;
+  const colWeek = header.weekkey;
+  const colAmt = header.amountpaid;
+  const colBy = header.paidby;
+
+  const out = [];
+  for (let i = rows.length - 1; i >= 1 && out.length < 52; i--) {
+    const r = rows[i];
+    if (String(r[colUser] || "").trim() !== String(uid)) continue;
+
+    out.push({
+      weekKey: String(r[colWeek] || ""),
+      paidAt: r[colPaidAt] ? new Date(r[colPaidAt]).toLocaleString() : "",
+      amountPaid: Number(r[colAmt] || 0),
+      paidBy: String(r[colBy] || "")
+    });
+  }
+
+  return { ok: true, rows: out };
+}
+
+// ============================
+// HELPERS
+// ============================
+function verifyFirebaseIdToken_(idToken) {
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`;
   const res = UrlFetchApp.fetch(url, {
     method: "post",
@@ -331,30 +415,63 @@ function verifyFirebaseIdToken_(idToken) {
 
   return {
     uid: data.users[0].localId,
-    email: data.users[0].email,
-    emailVerified: data.users[0].emailVerified
+    email: data.users[0].email
   };
 }
 
-function idxMap_(header) {
+function idxMap_(headerRow) {
   const map = {};
-  header.forEach((h, i) => {
+  headerRow.forEach((h, i) => {
     const key = String(h).trim().toLowerCase();
     map[key] = i;
   });
 
   return {
-    taskId: map.taskid,      // ✅ CHANGED TO LOWERCASE
+    taskId: map.taskid,
     audioUrl: map.audiourl,
     instruction: map.instruction,
     taskType: map.tasktype,
     status: map.status,
     assignedTo: map.assignedto,
     assignedAt: map.assignedat,
-    completedAt: map.completedat
+    completedAt: map.completedat,
+    pay: map.pay
   };
 }
 
+function headerIndex_(headerRow) {
+  const out = {};
+  headerRow.forEach((h, i) => {
+    out[String(h).trim().toLowerCase()] = i;
+  });
+
+  // convenient aliases (may be undefined if header missing)
+  return {
+    timestamp: out.timestamp,
+    userid: out.userid,
+    taskid: out.taskid,
+    durationsec: out.durationsec,
+    earnings: out.earnings,
+    drivefileurl: out.drivefileurl,
+    drivefileid: out.drivefileid,
+    status: out.status,
+
+    paidat: out.paidat,
+    weekkey: out.weekkey,
+    amountpaid: out.amountpaid,
+    paidby: out.paidby
+  };
+}
+
+function requireHeaders_(idx, keys) {
+  for (const k of keys) {
+    if (idx[k] == null) throw new Error(`Header missing in tasks sheet: ${k}`);
+  }
+}
+
+function norm_(v) {
+  return String(v == null ? "" : v).trim().toLowerCase();
+}
 
 function json_(obj) {
   return ContentService
@@ -362,81 +479,105 @@ function json_(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function extractMultipartParams_(e) {
-  const params = {};
+function toNumberSafe_(v) {
+  if (typeof v === "number") return v;
+  if (v == null) return 0;
 
-  // fallback (sometimes works)
-  if (e.parameter) {
-    Object.assign(params, e.parameter);
+  const s = String(v).trim();
+  // keep digits, dot, minus; remove currency etc
+  const n = parseFloat(s.replace(/[^\d.\-]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+function getUserDashboardDataByUid_(uid) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SUBMISSIONS_SHEET_NAME);
+  if (!sheet) return { ok: true, stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0 } };
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return { ok: true, stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0 } };
+
+  const h = headerIndex_(rows[0]);
+  const colUser = h.userid;
+  const colEarn = h.earnings;
+  const colStatus = h.status;
+
+  if (colUser == null || colEarn == null || colStatus == null) {
+    return { ok: false, error: "Submissions sheet missing header: userId / earnings / status" };
   }
 
-  // reliable source
-  if (e.postData && e.postData.type === "multipart/form-data") {
-    const boundary = e.postData.boundary;
-    const parts = Utilities.parseMultipartData(e.postData.contents, boundary);
+  let tasks = 0;
+  let total = 0;
+  let paid = 0;
 
-    parts.forEach(p => {
-      if (p.name && typeof p.data === "string") {
-        params[p.name] = p.data;
-      }
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (String(r[colUser] || "").trim() !== String(uid)) continue;
+
+    const status = String(r[colStatus] || "").trim().toLowerCase();
+    const earn = toNumberSafe_(r[colEarn]);
+
+    if (status === "submitted" || status === "paid") tasks++;
+    total += earn;
+    if (status === "paid") paid += earn;
+  }
+
+  total = Number(total.toFixed(2));
+  paid = Number(paid.toFixed(2));
+  const pending = Number((total - paid).toFixed(2));
+
+  return { ok: true, stats: { tasksCompleted: tasks, totalEarnings: total, pendingEarnings: pending } };
+}
+
+
+
+
+function getUserEarningsByUid_(uid, limit) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SUBMISSIONS_SHEET_NAME);
+  if (!sheet) return { ok: true, rows: [] };
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return { ok: true, rows: [] };
+
+  const out = [];
+  for (let i = rows.length - 1; i >= 1 && out.length < limit; i--) {
+    const r = rows[i];
+    if (String(r[1]) !== String(uid)) continue;
+
+    out.push({
+      timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0] || ""),
+      taskId: String(r[2] || ""),
+      durationSec: Number(r[3] || 0),
+      earnings: Number(r[4] || 0),
+      driveUrl: String(r[5] || ""),
+      status: String(r[7] || "")
     });
   }
 
-  return params;
-}
-
-function TEST_assignAudioTask() {
-  const fakeUid = "TEST_UID_123";
-  const result = assignAudioTask_(fakeUid);
-  Logger.log(result);
+  return { ok: true, rows: out };
 }
 
 
-function resetAllTasksToAvailable() {
-  const sh = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(TASKS_SHEET_NAME);
+function getUserPayoutsByUid_(uid, limit) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName("payout"); // ✅ your tab name
+  if (!sh) return { ok: true, rows: [] };
+
   const values = sh.getDataRange().getValues();
-  const idx = idxMap_(values[0]);
+  if (values.length < 2) return { ok: true, rows: [] };
 
-  for (let r = 1; r < values.length; r++) {
-    sh.getRange(r + 1, idx.status + 1).setValue("available");
-    sh.getRange(r + 1, idx.assignedTo + 1).setValue("");
-    if (idx.assignedAt != null) sh.getRange(r + 1, idx.assignedAt + 1).setValue("");
-    if (idx.completedAt != null) sh.getRange(r + 1, idx.completedAt + 1).setValue("");
-  }
-}
-
-function getUserDashboardData(e) {
-  const userId = e.parameter.userId;
-
-  const sheet = SpreadsheetApp
-    .openById(SPREADSHEET_ID)
-    .getSheetByName(SUBMISSIONS_SHEET_NAME);
-
-  if (!sheet) {
-    return { ok: false, error: "Submissions sheet not found" };
+  const out = [];
+  for (let i = values.length - 1; i >= 1 && out.length < limit; i--) {
+    const r = values[i];
+    out.push({
+      weekKey: String(r[0] || ""),
+      paidAt: String(r[1] || ""),
+      amountPaid: Number(r[2] || 0),
+      paidBy: String(r[3] || "")
+    });
   }
 
-  const rows = sheet.getDataRange().getValues();
-  rows.shift(); // remove header
-
-  let tasks = 0;
-  let totalEarnings = 0;
-
-  rows.forEach(row => {
-    if (String(row[1]) === String(userId)) {
-      tasks++;
-      totalEarnings += Number(row[4] || 0); // earnings column
-    }
-  });
-
-  totalEarnings = Number(totalEarnings.toFixed(2));
-
-  return {
-    ok: true,
-    stats: {
-      tasksCompleted: tasks,
-      totalEarnings: totalEarnings,
-      pendingEarnings: totalEarnings // same for now
-    }
-  };
+  return { ok: true, rows: out };
 }
+
