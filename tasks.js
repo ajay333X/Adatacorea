@@ -192,6 +192,9 @@ window.openEarningsPage = async function () {
 // ================================================================
 
 window.openPayoutHistoryPage = async function () {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
   const rowsEl = $("payout-rows");
   const emptyEl = $("payout-empty");
   if (!rowsEl) return;
@@ -209,11 +212,17 @@ window.openPayoutHistoryPage = async function () {
     }
 
     for (const r of rows) {
+      // ✅ Safe date formatting
+      const paidAt =
+        r.paidAtISO ? new Date(r.paidAtISO).toLocaleString() :
+        (r.paidAtDisplay || "-");
+
       const tr = document.createElement("tr");
       tr.className = "border-b border-white/10";
       tr.innerHTML = `
+        <td class="py-2 px-2 text-white/70 text-xs">${user.uid}</td>
         <td class="py-2 px-2 text-white text-sm font-medium">${r.weekKey || "-"}</td>
-        <td class="py-2 px-2 text-white/70 text-xs">${r.paidAt || "-"}</td>
+        <td class="py-2 px-2 text-white/70 text-xs">${paidAt}</td>
         <td class="py-2 px-2 text-white font-semibold">$${Number(r.amountPaid || 0).toFixed(2)}</td>
         <td class="py-2 px-2 text-white/60 text-xs">${r.paidBy || "-"}</td>
       `;
