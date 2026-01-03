@@ -18,7 +18,7 @@ let taskStartTime = null;
 let taskTimerInterval = null;
 let micStream = null;
 
-// ✅ New: Recording Timer State
+// ✅ Recording Timer State
 let recordingInterval = null;
 let recordingSeconds = 0;
 
@@ -89,7 +89,7 @@ async function callApi(action, extra = {}) {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error("Apps Script returned non-JSON (deployment/access issue). First 200 chars:\n" + text.slice(0, 200));
+    throw new Error("Apps Script returned non-JSON. Deployment issue.");
   }
 
   if (!json.ok) throw new Error(json.error || "Request failed");
@@ -97,44 +97,11 @@ async function callApi(action, extra = {}) {
 }
 
 // ================================================================
-// Firestore profile doc (optional / safe)
-// ================================================================
-async function ensureUserDoc(user) {
-  if (!user || !window.db) return;
-
-  const userRef = doc(window.db, "users", user.uid);
-  const snap = await getDoc(userRef);
-
-  const displayName = user.displayName || (user.email ? user.email.split("@")[0] : "User");
-
-  if (!snap.exists()) {
-    await setDoc(userRef, {
-      displayName,
-      email: user.email || "",
-      photoURL: user.photoURL || "",
-      role: "cb",
-      stats: { tasksCompleted: 0, totalEarnings: 0, pendingEarnings: 0, paidEarnings: 0 },
-      activity: { lastLogin: serverTimestamp() },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-  } else {
-    await setDoc(userRef, {
-      displayName,
-      email: user.email || "",
-      photoURL: user.photoURL || "",
-      activity: { lastLogin: serverTimestamp() },
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-  }
-}
-
-// ================================================================
 // Dashboard (Sheet-only stats) ✅
 // ================================================================
 async function refreshDashboardFromSheet() {
   try {
-    const data = await callApi("getUserDashboardData"); // ✅ POST with idToken
+    const data = await callApi("getUserDashboardData"); 
     const stats = data.stats || {};
 
     const tasksEl = document.querySelector('[data-metric="tasks"]');
@@ -191,10 +158,6 @@ window.openEarningsPage = async function () {
   }
 };
 
-// ================================================================
-// Payout History (optional, Sheet rows)
-// ================================================================
-
 window.openPayoutHistoryPage = async function () {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
@@ -216,10 +179,7 @@ window.openPayoutHistoryPage = async function () {
     }
 
     for (const r of rows) {
-      const paidAt =
-        r.paidAtISO ? new Date(r.paidAtISO).toLocaleString() :
-        (r.paidAtDisplay || "-");
-
+      const paidAt = r.paidAtISO ? new Date(r.paidAtISO).toLocaleString() : (r.paidAtDisplay || "-");
       const tr = document.createElement("tr");
       tr.className = "border-b border-white/10";
       tr.innerHTML = `
@@ -261,9 +221,6 @@ async function assignAndRenderTask() {
   }
 }
 
-// ================================================================
-// WORKSPACE RENDER
-// ================================================================
 function renderTaskWorkspace(task) {
   const instructionEl = $("task-instruction");
   const audioEl = $("task-audio");
@@ -278,14 +235,16 @@ function renderTaskWorkspace(task) {
   audioEl.src = task.audioUrl || "";
   audioEl.load();
 
+  // Reset preview UI for new task
+  const previewEl = $("preview-audio");
+  if (previewEl) previewEl.src = "";
+  $("preview-section")?.classList.add("hidden");
+
   audioChunks = [];
   taskStartTime = Date.now();
   startTaskTimer();
 }
 
-// ================================================================
-// TIMER
-// ================================================================
 function startTaskTimer() {
   if (taskTimerInterval) clearInterval(taskTimerInterval);
   taskTimerInterval = setInterval(() => {
@@ -296,13 +255,9 @@ function startTaskTimer() {
     setAllById("task-timer", `Time: ${min}:${sec}`);
   }, 1000);
 }
-function stopTaskTimer() {
-  if (taskTimerInterval) clearInterval(taskTimerInterval);
-  taskTimerInterval = null;
-}
 
 // ================================================================
-// RECORDING LOGIC (WITH INTEGRATED UI TIMER) ✅
+// RECORDING LOGIC (WITH TIMER & PREVIEW) ✅
 // ================================================================
 window.startRecording = async function () {
   try {
@@ -318,13 +273,23 @@ window.startRecording = async function () {
     mediaRecorder.onstop = () => {
       micStream?.getTracks()?.forEach(t => t.stop());
       micStream = null;
+
+      // ✅ Create Preview URL when recording stops
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const previewEl = $("preview-audio");
+      if (previewEl) {
+        previewEl.src = audioUrl;
+        $("preview-section")?.classList.remove("hidden");
+      }
     };
 
     mediaRecorder.start();
 
-    // ✅ Start Live Countdown Timer UI
+    // Start UI Timer
     recordingSeconds = 0;
     $("recording-status")?.classList.remove("hidden");
+    $("preview-section")?.classList.add("hidden"); // Hide preview while recording
     setAllById("recording-timer", "00:00");
     
     recordingInterval = setInterval(() => {
@@ -346,7 +311,6 @@ window.stopRecording = function () {
   if (!mediaRecorder) return;
   if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
 
-  // ✅ Stop Live Timer UI
   clearInterval(recordingInterval);
   $("recording-status")?.classList.add("hidden");
 
@@ -355,18 +319,14 @@ window.stopRecording = function () {
 };
 
 // ================================================================
-// EXIT WORKSPACE
+// EXIT & SUBMIT
 // ================================================================
 window.safeExitTaskWorkspace = function () {
-  try {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-  } catch {}
-
+  try { if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop(); } catch {}
   micStream?.getTracks()?.forEach(t => t.stop());
   micStream = null;
-
-  stopTaskTimer();
-  clearInterval(recordingInterval);
+  if (taskTimerInterval) clearInterval(taskTimerInterval);
+  if (recordingInterval) clearInterval(recordingInterval);
 
   currentTask = null;
   audioChunks = [];
@@ -376,49 +336,28 @@ window.safeExitTaskWorkspace = function () {
   refreshDashboardFromSheet();
 };
 
-// ================================================================
-// SUBMIT + NEXT ✅
-// ================================================================
 window.submitAndLoadNextTask = async function () {
   if (!currentTask) return alert("No active task");
-
-  const taskId = currentTask.taskId;
-  const durationSec = Math.floor((Date.now() - taskStartTime) / 1000);
-
-  if (!audioChunks || audioChunks.length === 0) {
-    return alert("No recording found. Please record before submitting.");
-  }
+  if (!audioChunks || audioChunks.length === 0) return alert("Please record before submitting.");
 
   const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
   const audioBase64 = await blobToBase64(audioBlob);
 
   try {
     const json = await callApi("submitAudioTask", {
-      taskId,
-      durationSec: String(durationSec),
-      mimeType: "audio/webm",
+      taskId: currentTask.taskId,
+      durationSec: String(Math.floor((Date.now() - taskStartTime) / 1000)),
       audioBase64
     });
 
-    const earned = Number(json.result?.earnings || 0).toFixed(2);
-    alert(`✅ Submitted!\nEarned: $${earned}`);
-
-    stopTaskTimer();
-    audioChunks = [];
-    currentTask = null;
-    taskStartTime = null;
-
+    alert(`✅ Submitted! Earned: $${Number(json.result?.earnings || 0).toFixed(2)}`);
     await refreshDashboardFromSheet();
     await assignAndRenderTask();
   } catch (e) {
-    console.error("Submit error:", e);
     alert(e.message || "Submit failed");
   }
 };
 
-// ================================================================
-// Helpers
-// ================================================================
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -434,16 +373,9 @@ function blobToBase64(blob) {
 (function initAuth() {
   const wait = setInterval(() => {
     if (!window.firebaseAuth) return;
-
     clearInterval(wait);
-
     onAuthStateChanged(window.firebaseAuth, async (user) => {
       if (!user) return;
-
-      if (window.db) {
-        try { await ensureUserDoc(user); } catch (e) { console.warn("ensureUserDoc failed:", e); }
-      }
-
       await refreshDashboardFromSheet(); 
     });
   }, 50);
