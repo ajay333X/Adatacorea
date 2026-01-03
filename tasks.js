@@ -1,5 +1,5 @@
 // ================================================================
-// tasks.js (FINAL GLOBAL VERSION - FIXED SUBMIT & NEXT) ✅
+// tasks.js (SYNCED TIMER WITH RECORDING) ✅
 // ================================================================
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
@@ -13,6 +13,7 @@ window.mediaRecorder = null;
 window.audioChunks = [];
 window.taskStartTime = null;
 window.micStream = null;
+window.recordedDuration = 0; // रिकॉर्ड की गई सटीक सेकंड्स
 let taskTimerInterval = null;
 
 (function ensureWorkspaceOnBody() {
@@ -65,23 +66,46 @@ async function refreshDashboardFromSheet() {
   } catch (e) { console.warn(e); }
 }
 
+// ================================================================
+// RECORDING START (TIMER STARTS HERE)
+// ================================================================
 window.startRecording = async function () {
   try {
     window.audioChunks = [];
     window.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     window.mediaRecorder = new MediaRecorder(window.micStream, { mimeType: "audio/webm" });
+    
     window.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) window.audioChunks.push(e.data); };
     window.mediaRecorder.onstop = () => {
       window.micStream?.getTracks()?.forEach(t => t.stop());
     };
+
     window.mediaRecorder.start();
+
+    // ✅ टाइमर अब यहाँ से शुरू होगा
+    window.taskStartTime = Date.now();
+    startTaskTimer();
+
     $("start-recording-btn")?.classList.add("hidden");
     $("stop-recording-btn")?.classList.remove("hidden");
   } catch (e) { alert("Mic error: " + e.message); }
 };
 
+// ================================================================
+// RECORDING STOP (TIMER STOPS HERE)
+// ================================================================
 window.stopRecording = function () {
-  if (window.mediaRecorder && window.mediaRecorder.state !== "inactive") window.mediaRecorder.stop();
+  if (window.mediaRecorder && window.mediaRecorder.state !== "inactive") {
+      window.mediaRecorder.stop();
+  }
+
+  // ✅ टाइमर को इसी पल रोक दें
+  if (taskTimerInterval) {
+      clearInterval(taskTimerInterval);
+      // फाइनल ड्यूरेशन सेव करें
+      window.recordedDuration = Math.floor((Date.now() - window.taskStartTime) / 1000);
+  }
+
   $("stop-recording-btn")?.classList.add("hidden");
   $("start-recording-btn")?.classList.remove("hidden");
 };
@@ -96,9 +120,8 @@ window.handleStartNextTask = async function () {
 };
 
 function renderTaskWorkspace(task) {
-  // UI Reset for New Task
   setAllById("workspace-task-id", `Task ID: ${task.taskId}`);
-  setAllById("task-timer", "Time: 00:00");
+  setAllById("task-timer", "Time: 00:00"); // सिर्फ रीसेट करें, स्टार्ट नहीं
   if ($("task-instruction")) $("task-instruction").textContent = task.instruction || "";
   if ($("task-audio")) {
       $("task-audio").pause();
@@ -106,11 +129,14 @@ function renderTaskWorkspace(task) {
       $("task-audio").load();
   }
   
-  // Timer Reset
   window.audioChunks = [];
-  window.taskStartTime = Date.now();
+  window.recordedDuration = 0;
   if (taskTimerInterval) clearInterval(taskTimerInterval);
+}
+
+function startTaskTimer() {
   taskTimerInterval = setInterval(() => {
+    if (!window.taskStartTime) return;
     const elapsed = Math.floor((Date.now() - window.taskStartTime) / 1000);
     const min = String(Math.floor(elapsed / 60)).padStart(2, "0");
     const sec = String(elapsed % 60).padStart(2, "0");
@@ -128,33 +154,26 @@ window.safeExitTaskWorkspace = function () {
 window.submitAndLoadNextTask = async function () {
   if (window.audioChunks.length === 0) return alert("Please record first");
   
-  // ✅ 1. Submit शुरू होते ही टाइमर रोक दें
-  if (taskTimerInterval) clearInterval(taskTimerInterval);
-
   const audioBlob = new Blob(window.audioChunks, { type: "audio/webm" });
   const reader = new FileReader();
   reader.readAsDataURL(audioBlob);
   reader.onloadend = async () => {
     try {
-      const durationSec = Math.floor((Date.now() - window.taskStartTime) / 1000);
+      // ✅ पेमेंट के लिए सिर्फ रिकॉर्ड किया गया समय भेजें
       const audioBase64 = reader.result.split(",")[1];
       
       const json = await callApi("submitAudioTask", {
         taskId: window.currentTask.taskId,
-        durationSec: String(durationSec),
+        durationSec: String(window.recordedDuration),
         audioBase64: audioBase64
       });
       
-      alert(`✅ Submitted! Earned: $${Number(json.result?.earnings || 0).toFixed(2)}`);
+      alert(`✅ Submitted! Duration: ${window.recordedDuration}s | Earned: $${Number(json.result?.earnings || 0).toFixed(2)}`);
       
-      // ✅ 2. डेटा रिफ्रेश करें और अगला टास्क लोड करें (Task ID अपने आप बदल जाएगी)
       await refreshDashboardFromSheet();
       window.handleStartNextTask(); 
 
-    } catch (e) { 
-      alert("Submit Error: " + e.message);
-      // अगर फेल हो जाए तो टाइमर फिर शुरू कर सकते हैं (Optional)
-    }
+    } catch (e) { alert("Submit Error: " + e.message); }
   };
 };
 
