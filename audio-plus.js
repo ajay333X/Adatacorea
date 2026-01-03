@@ -1,9 +1,8 @@
 // ================================================================
-// AUDIO PLUS ENGINE - Integrated with Global tasks.js (RESETS ON NEXT)
+// AUDIO PLUS ENGINE - Timer Syncs ONLY during Recording
 // ================================================================
 
-let audioCtx, analyser, dataArray, animationId;
-let previewUrl = null;
+let audioCtx, analyser, dataArray, animationId, previewUrl;
 
 function setupEnhancedUI() {
     const placeholders = document.querySelectorAll('.lg\\:col-span-3 div, .lg\\:col-span-3 span');
@@ -22,19 +21,19 @@ function setupEnhancedUI() {
     container.innerHTML = `
         <div id="rec-box" class="hidden rounded-2xl border-2 border-red-500 bg-red-500/10 p-6 flex flex-col items-center shadow-[0_0_20px_rgba(239,68,68,0.2)]">
             <div class="flex items-center gap-4 mb-4">
-                <div class="w-4 h-4 bg-red-600 rounded-full animate-ping shadow-[0_0_10px_red]"></div>
+                <div class="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_red]"></div>
                 <span id="big-timer-display" class="text-6xl font-mono font-black text-white tracking-tighter">00:00</span>
             </div>
             <canvas id="live-waveform-canvas" class="w-full h-32 bg-black/40 rounded-xl border border-white/5"></canvas>
-            <p class="text-red-400 text-[10px] mt-4 font-bold uppercase tracking-widest">Mic Active - Capturing Voice</p>
+            <p class="text-red-400 text-[10px] mt-4 font-bold uppercase tracking-widest">Recording in Progress</p>
         </div>
 
-        <div id="preview-box" class="hidden rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/10 p-6 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+        <div id="preview-box" class="hidden rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 p-6 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
             <div class="flex items-center justify-between mb-4">
                 <span class="text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Final Recording Preview
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Preview Saved Recording
                 </span>
-                <span class="text-white/20 text-[10px] italic">Check Clarity</span>
+                <span class="text-white/20 text-[10px] italic">Reviewing time...</span>
             </div>
             <audio id="enhanced-player-preview" controls class="w-full h-12"></audio>
         </div>
@@ -45,7 +44,7 @@ function setupEnhancedUI() {
 
 function startWaveformDrawing(stream) {
     if (!stream) return;
-    if (audioCtx) audioCtx.close();
+    if (audioCtx) try { audioCtx.close(); } catch(e) {}
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     const source = audioCtx.createMediaStreamSource(stream);
@@ -82,7 +81,7 @@ window.startRecording = async function() {
     const recBox = document.getElementById('rec-box');
     const previewBox = document.getElementById('preview-box');
     if(recBox) recBox.classList.remove('hidden');
-    if(previewBox) previewBox.classList.add('hidden'); // नया शुरू होते ही पिछला प्रीव्यू छुपाएं
+    if(previewBox) previewBox.classList.add('hidden');
     
     await originalStart();
 
@@ -101,6 +100,7 @@ window.stopRecording = function() {
     const recBox = document.getElementById('rec-box');
     if(recBox) recBox.classList.add('hidden');
     cancelAnimationFrame(animationId);
+    if(audioCtx) audioCtx.close();
 
     setTimeout(() => {
         if (window.audioChunks && window.audioChunks.length > 0) {
@@ -117,13 +117,13 @@ window.stopRecording = function() {
     }, 400);
 };
 
-// ✅ WATCH FOR NEW TASKS: जब Task ID बदले, UI रीसेट कर दें
-const observer = new MutationObserver(() => {
+// Observer for Clean Reset
+const resetObserver = new MutationObserver(() => {
     const previewBox = document.getElementById('preview-box');
     if (previewBox) previewBox.classList.add('hidden');
 });
 
-const targetId = document.getElementById('workspace-task-id');
-if (targetId) observer.observe(targetId, { childList: true, characterData: true, subtree: true });
+const taskMeta = document.getElementById('workspace-task-id');
+if (taskMeta) resetObserver.observe(taskMeta, { childList: true, characterData: true, subtree: true });
 
 setInterval(setupEnhancedUI, 1000);
