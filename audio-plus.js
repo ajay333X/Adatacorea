@@ -1,19 +1,15 @@
 // ================================================================
-// AUDIO PLUS ENGINE - Integrated with Global tasks.js
+// AUDIO PLUS ENGINE - Integrated with Global tasks.js (RESETS ON NEXT)
 // ================================================================
 
 let audioCtx, analyser, dataArray, animationId;
 let previewUrl = null;
 
-// 1. UI Injection - आपके ऑरिजनल HTML के "Waveform Preview" को असली में बदलना
 function setupEnhancedUI() {
-    // आपके HTML में जो "Waveform Preview" वाला टेक्स्ट है, उसे ढूंढना
     const placeholders = document.querySelectorAll('.lg\\:col-span-3 div, .lg\\:col-span-3 span');
     let target = null;
-    
     placeholders.forEach(el => {
         if(el.innerText && el.innerText.includes('Waveform Preview')) {
-            // उस एलिमेंट का पैरेंट (Container) पकड़ना
             target = el.closest('.rounded-xl') || el.parentElement;
         }
     });
@@ -38,41 +34,33 @@ function setupEnhancedUI() {
                 <span class="text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                     <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Final Recording Preview
                 </span>
-                <span class="text-white/20 text-[10px] italic">सुनें और चेक करें</span>
+                <span class="text-white/20 text-[10px] italic">Check Clarity</span>
             </div>
             <audio id="enhanced-player-preview" controls class="w-full h-12"></audio>
         </div>
     `;
-    
-    // पुराने नकली डिब्बे को हटाकर नया वर्किंग डिब्बा डालना
     target.innerHTML = '';
     target.appendChild(container);
 }
 
-// 2. Sound Wave Visualization
 function startWaveformDrawing(stream) {
     if (!stream) return;
-    
+    if (audioCtx) audioCtx.close();
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     const source = audioCtx.createMediaStreamSource(stream);
     source.connect(analyser);
-    
     analyser.fftSize = 256;
     dataArray = new Uint8Array(analyser.frequencyBinCount);
-    
     const canvas = document.getElementById('live-waveform-canvas');
-    if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
     function animate() {
         animationId = requestAnimationFrame(animate);
         analyser.getByteFrequencyData(dataArray);
-        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const barWidth = (canvas.width / dataArray.length) * 2.5;
         let x = 0;
-
         for(let i = 0; i < dataArray.length; i++) {
             const barHeight = (dataArray[i] / 255) * canvas.height;
             const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
@@ -86,22 +74,18 @@ function startWaveformDrawing(stream) {
     animate();
 }
 
-// 3. ओरिजिनल functions को पकड़कर फीचर्स जोड़ना
 const originalStart = window.startRecording;
 const originalStop = window.stopRecording;
 
 window.startRecording = async function() {
-    setupEnhancedUI(); // पक्का करें कि UI मौजूद है
-    
-    // UI दिखाना
+    setupEnhancedUI();
     const recBox = document.getElementById('rec-box');
     const previewBox = document.getElementById('preview-box');
     if(recBox) recBox.classList.remove('hidden');
-    if(previewBox) previewBox.classList.add('hidden');
+    if(previewBox) previewBox.classList.add('hidden'); // नया शुरू होते ही पिछला प्रीव्यू छुपाएं
     
-    await originalStart(); // tasks.js का ओरिजिनल काम चालू करें
+    await originalStart();
 
-    // टाइमर को सिंक करना (tasks.js के छोटे टाइमर से बड़ा टाइमर बनाना)
     const tSync = setInterval(() => {
         const sourceTime = document.getElementById('task-timer')?.textContent || "00:00";
         const display = document.getElementById('big-timer-display');
@@ -109,26 +93,20 @@ window.startRecording = async function() {
         if (!recBox || recBox.classList.contains('hidden')) clearInterval(tSync);
     }, 100);
 
-    // Waveform शुरू करना (tasks.js के ग्लोबल स्ट्रीम का उपयोग)
     if (window.micStream) startWaveformDrawing(window.micStream);
 };
 
 window.stopRecording = function() {
-    originalStop(); // tasks.js का काम बंद करें
-    
+    originalStop();
     const recBox = document.getElementById('rec-box');
     if(recBox) recBox.classList.add('hidden');
-    
     cancelAnimationFrame(animationId);
-    if(audioCtx) audioCtx.close();
 
-    // रिकॉर्डिंग प्रीव्यू सेट करना (tasks.js के ग्लोबल चंक्स से)
     setTimeout(() => {
         if (window.audioChunks && window.audioChunks.length > 0) {
             const blob = new Blob(window.audioChunks, { type: 'audio/webm' });
             if (previewUrl) URL.revokeObjectURL(previewUrl);
             previewUrl = URL.createObjectURL(blob);
-            
             const player = document.getElementById('enhanced-player-preview');
             const previewBox = document.getElementById('preview-box');
             if (player && previewBox) {
@@ -139,5 +117,13 @@ window.stopRecording = function() {
     }, 400);
 };
 
-// वर्कस्पेस खुलने पर ऑटो-इंजेक्ट करने के लिए
+// ✅ WATCH FOR NEW TASKS: जब Task ID बदले, UI रीसेट कर दें
+const observer = new MutationObserver(() => {
+    const previewBox = document.getElementById('preview-box');
+    if (previewBox) previewBox.classList.add('hidden');
+});
+
+const targetId = document.getElementById('workspace-task-id');
+if (targetId) observer.observe(targetId, { childList: true, characterData: true, subtree: true });
+
 setInterval(setupEnhancedUI, 1000);
