@@ -1,274 +1,227 @@
-/* =========================================================
-   UI + Navigation Logic (NO Firebase INIT HERE)
-   Uses db.js ONLY for data access
-========================================================= */
+// ================================================================
+// tasks.js (SHEET-ONLY SOURCE OF TRUTH) ✅
+// ================================================================
 
-import { getUserData } from "./db.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+import { doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-const SESSION_KEY = "adatacore_session";
-const THEME_KEY = "adatacore_theme";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxWohvXhaVcCHACcEXAMgOcG0Kus85DgXbIRD5VTVUygEWa8TnUhfAKARNFB_qnBhIn/exec";
 
-/* ================= THEME ================= */
-function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  document.documentElement.classList.toggle("dark", saved !== "light");
-}
+// -------------------- State --------------------
+let currentTask = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let taskStartTime = null;
+let taskTimerInterval = null;
+let micStream = null;
 
-document.getElementById("theme-toggle-btn")?.addEventListener("click", () => {
-  document.documentElement.classList.toggle("dark");
-  localStorage.setItem(
-    THEME_KEY,
-    document.documentElement.classList.contains("dark") ? "dark" : "light"
-  );
-});
+// ✅ Recording Timer State
+let recordingInterval = null;
+let recordingSeconds = 0;
 
-/* ================= LOGO RENDER ================= */
-function renderLogo(targetId, size = 140) {
-  const el = document.getElementById(targetId);
-  if (!el) return;
-
-  el.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg"
-         viewBox="0 0 400 380"
-         width="${size}"
-         height="${size}"
-         aria-label="Adatacore Logo">
-      <defs>
-        <linearGradient id="g-${targetId}" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#3b82f6"/>
-          <stop offset="50%" stop-color="#a855f7"/>
-          <stop offset="100%" stop-color="#ec4899"/>
-        </linearGradient>
-      </defs>
-      <g transform="translate(200, 190)">
-        <g fill="none" stroke="url(#g-${targetId})" stroke-width="25">
-          <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(30)" />
-          <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(90)" />
-          <ellipse cx="0" cy="0" rx="70" ry="160" transform="rotate(150)" />
-        </g>
-        <circle cx="0" cy="0" r="60" fill="none" stroke="#ec4899" stroke-width="15"/>
-      </g>
-    </svg>
-  `;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  renderLogo("landing-logo-large", 160);
-  renderLogo("auth-logo-large", 140);
-  renderLogo("sidebar-logo-icon", 36);
-  renderLogo("mobile-logo-icon", 48);
-});
-
-/* ================= AUTH FORM TOGGLE ================= */
-window.toggleAuthForm = function (forceRegister = null) {
-  const loginForm = document.getElementById("login-form");
-  const registerForm = document.getElementById("register-form");
-  const title = document.getElementById("auth-title");
-  const toggleText = document.getElementById("auth-toggle-text");
-
-  if (!loginForm || !registerForm) return;
-
-  const showRegister =
-    forceRegister !== null
-      ? forceRegister
-      : registerForm.classList.contains("hidden");
-
-  if (showRegister) {
-    loginForm.classList.add("hidden");
-    registerForm.classList.remove("hidden");
-    title.textContent = "Create Account";
-    toggleText.innerHTML =
-      `Already have an account?
-       <button class="text-violet-600 font-medium" onclick="window.toggleAuthForm(false)">Log In</button>`;
-  } else {
-    registerForm.classList.add("hidden");
-    loginForm.classList.remove("hidden");
-    title.textContent = "Welcome Back";
-    toggleText.innerHTML =
-      `Don't have an account?
-       <button class="text-violet-600 font-medium" onclick="window.toggleAuthForm(true)">Sign Up</button>`;
-  }
-};
-
-/* ================= PROFILE UI ================= */
-function updateProfileUI(email, uid, role = "User") {
-  if (!email) return;
-
-  const storedName = localStorage.getItem("displayName");
-  const name = storedName || email.split("@")[0].toUpperCase();
-
-  document.getElementById("welcome-username") &&
-    (document.getElementById("welcome-username").textContent = name + "!");
-
-  document.getElementById("profile-username") &&
-    (document.getElementById("profile-username").textContent = name);
-
-  document.getElementById("sidebar-username") &&
-    (document.getElementById("sidebar-username").textContent = name);
-
-  // Sidebar UID
-  const sidebarId = document.getElementById("sidebar-userid");
-  if (sidebarId && uid) {
-    sidebarId.textContent = uid.slice(0, 18) + "…";
-sidebarId.title = uid; // full UID on hover
-
-  }
-
-  // ✅ Profile page UID
-  // ✅ Copy UID button
-
-const profileId = document.getElementById("profile-userid");
-if (profileId && uid) {
-  profileId.textContent = uid;
-}
-const copyBtn = document.getElementById("copy-uid-btn");
-if (copyBtn && uid) {
-  copyBtn.onclick = async () => {
-    try {
-      await navigator.clipboard.writeText(uid);
-      copyBtn.textContent = "✔";
-      setTimeout(() => (copyBtn.textContent = "📋"), 1200);
-    } catch (err) {
-      alert("Failed to copy UID");
-    }
-  };
-}
-
-
-  // ✅ Profile page role
-  const profileRole = document.getElementById("profile-role");
-  if (profileRole) {
-    profileRole.textContent = role;
-  }
-}
-
-
-/* ================= NAVIGATION ================= */
-window.navigateTo = (viewId) => {
-  // hide all views
-  document.querySelectorAll(".view").forEach(v => {
-    v.classList.add("hidden");
-    v.style.display = ""; // reset inline display if any
-  });
-
-  // find target
-  const target = document.getElementById(viewId);
-
-  if (!target) {
-    console.warn("❌ Missing view:", viewId);
-    return;
-  }
-
-  // ✅ MUST be a view container
-  if (!target.classList.contains("view")) {
-    console.error(
-      `❌ ID "${viewId}" exists but is NOT a .view element.`,
-      "This usually means duplicate IDs (like <a id='earnings-view'>...).",
-      target
-    );
-    return;
-  }
-
-  // show target
-  target.classList.remove("hidden");
-  target.style.display = "block"; // force visible
-
-  // ✅ always hide task workspace overlay
+// ✅ Overlay hard-fix
+(function ensureWorkspaceOnBody() {
   const ws = document.getElementById("task-workspace-view");
-  if (ws) {
-    ws.classList.add("hidden");
-    ws.style.display = "none";
-  }
+  if (!ws) return;
+  if (ws.parentElement !== document.body) document.body.appendChild(ws);
+  ws.style.position = "fixed";
+  ws.style.inset = "0";
+  ws.style.zIndex = "2147483647";
+})();
 
-  // sidebar logic
-  const sidebar = document.getElementById("sidebar");
-  const topRight = document.getElementById("top-right-controls");
+// ================================================================
+// Small helpers
+// ================================================================
+function $(id) { return document.getElementById(id); }
 
-  const protectedViews = [
-    "dashboard-view",
-    "tasks-view",
-    "profile-view",
-    "payout-view",
-    "quality-view",
-    "earnings-view"
-  ];
-
-  if (protectedViews.includes(viewId)) {
-    sidebar?.classList.remove("hidden");
-    topRight?.classList.remove("hidden");
-  } else {
-    sidebar?.classList.add("hidden");
-    topRight?.classList.add("hidden");
-  }
-
-  // ✅ debug: prove what is visible
-  console.log("✅ navigateTo:", viewId, "=> showing:", target);
-
-  window.scrollTo(0, 0);
-};
-
-
-
-/* ================= 3 DOT MENU ================= */
-function initThreeDotMenu() {
-  const btn = document.getElementById("three-dot-btn");
-  const dropdown = document.getElementById("three-dot-dropdown");
-
-  if (!btn || !dropdown) return;
-
-  btn.onclick = (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle("hidden");
-  };
-
-  document.addEventListener("click", () => {
-    dropdown.classList.add("hidden");
-  });
+function setAllById(id, text) {
+  document.querySelectorAll(`#${CSS.escape(id)}`).forEach(el => (el.textContent = text));
 }
 
-/* ================= AUTH EVENTS ================= */
-document.addEventListener("auth:login", async (e) => {
-  const { uid, email } = e.detail;
+function hideAllViews() {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+}
+function showSidebar() { $("sidebar")?.classList.remove("hidden"); }
+function hideSidebar() { $("sidebar")?.classList.add("hidden"); }
 
-  localStorage.setItem(SESSION_KEY, "authenticated");
+function showWorkspace() {
+  const ws = $("task-workspace-view");
+  if (!ws) return;
+  hideAllViews();
+  hideSidebar();
+  ws.classList.remove("hidden");
+  ws.style.display = "block";
+  document.body.classList.add("overflow-hidden");
+}
 
-  // ✅ get user data FIRST (for role, stats)
-  const data = await getUserData(uid);
+function hideWorkspace() {
+  const ws = $("task-workspace-view");
+  if (!ws) return;
+  ws.classList.add("hidden");
+  ws.style.display = "none";
+  document.body.classList.remove("overflow-hidden");
+}
 
-  updateProfileUI(email, uid, data?.role || "User");
+function forceShowDashboard() {
+  hideAllViews();
+  $("dashboard-view")?.classList.remove("hidden");
+  showSidebar();
+  hideWorkspace();
+}
 
-  navigateTo("dashboard-view");
-  initThreeDotMenu();
+// ================================================================
+// API: call Apps Script securely
+// ================================================================
+async function callApi(action, extra = {}) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const idToken = await user.getIdToken();
+  const body = new URLSearchParams({ action, idToken, ...extra });
+  const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch {
+    throw new Error("Apps Script returned non-JSON.");
+  }
+  if (!json.ok) throw new Error(json.error || "Request failed");
+  return json;
+}
 
-  if (!data || !data.stats) return;
+// ================================================================
+// Dashboard Stats
+// ================================================================
+async function refreshDashboardFromSheet() {
+  try {
+    const data = await callApi("getUserDashboardData");
+    const stats = data.stats || {};
+    if ($('[data-metric="tasks"]')) $('[data-metric="tasks"]').textContent = stats.tasksCompleted || 0;
+    if ($('[data-metric="total-earnings"]')) $('[data-metric="total-earnings"]').textContent = `$${Number(stats.totalEarnings || 0).toFixed(2)}`;
+    if ($('[data-metric="pending-earnings"]')) $('[data-metric="pending-earnings"]').textContent = `$${Number(stats.pendingEarnings || 0).toFixed(2)}`;
+  } catch (e) { console.warn("Dashboard fetch failed:", e); }
+}
 
-  // ✅ REPLACE the old ".border-xxx p" selectors with these:
-  const pendingEl = document.querySelector('[data-metric="pending-earnings"]');
-  const totalEl = document.querySelector('[data-metric="total-earnings"]');
-  const tasksEl = document.querySelector('[data-metric="tasks"]');
+// ================================================================
+// RECORDING LOGIC (WITH TIMER) ✅
+// ================================================================
+window.startRecording = async function () {
+  try {
+    audioChunks = [];
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(micStream, { mimeType: "audio/webm" });
 
-  if (pendingEl) pendingEl.textContent = `$${Number(data.stats.pendingEarnings || 0).toFixed(2)}`;
-  if (totalEl) totalEl.textContent = `$${Number(data.stats.totalEarnings || 0).toFixed(2)}`;
-  if (tasksEl) tasksEl.textContent = Number(data.stats.tasksCompleted || 0);
-});
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) audioChunks.push(e.data);
+    };
 
+    mediaRecorder.onstop = () => {
+      micStream?.getTracks()?.forEach(t => t.stop());
+      micStream = null;
+    };
 
-document.addEventListener("auth:logout", () => {
-  localStorage.removeItem(SESSION_KEY);
-  navigateTo("landing-view");
-});
+    mediaRecorder.start();
 
-/* ================= INIT ================= */
-document.addEventListener("DOMContentLoaded", () => {
-  initTheme();
-  navigateTo("landing-view");
-});
+    // ✅ Start Live Recording Timer
+    recordingSeconds = 0;
+    setAllById("recording-timer", "00:00");
+    $("recording-status")?.classList.remove("hidden");
+    
+    recordingInterval = setInterval(() => {
+      recordingSeconds++;
+      const min = String(Math.floor(recordingSeconds / 60)).padStart(2, "0");
+      const sec = String(recordingSeconds % 60).padStart(2, "0");
+      setAllById("recording-timer", `${min}:${sec}`);
+    }, 1000);
 
-
-window.saveProfile = function () {
-  const nameInput = document.getElementById("profile-fullname-input");
-  if (!nameInput) return;
-
-  localStorage.setItem("displayName", nameInput.value.trim());
-  alert("Profile updated");
+    $("start-recording-btn")?.classList.add("hidden");
+    $("stop-recording-btn")?.classList.remove("hidden");
+  } catch (e) {
+    alert("Mic permission denied.");
+  }
 };
+
+window.stopRecording = function () {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+
+  // ✅ Stop Live Timer
+  clearInterval(recordingInterval);
+  $("recording-status")?.classList.add("hidden");
+
+  $("stop-recording-btn")?.classList.add("hidden");
+  $("start-recording-btn")?.classList.remove("hidden");
+};
+
+// ================================================================
+// TASK & SUBMIT
+// ================================================================
+window.handleStartNextTask = async function () {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return alert("Not logged in");
+  await assignAndRenderTask();
+};
+
+async function assignAndRenderTask() {
+  try {
+    const json = await callApi("assignAudioTask");
+    currentTask = json.task;
+    if (!currentTask) throw new Error("No task available");
+    showWorkspace();
+    renderTaskWorkspace(currentTask);
+  } catch (e) {
+    alert(e.message);
+    forceShowDashboard();
+  }
+}
+
+function renderTaskWorkspace(task) {
+  setAllById("workspace-task-id", `Task ID: ${task.taskId}`);
+  setAllById("task-timer", "Time: 00:00");
+  if ($("task-instruction")) $("task-instruction").textContent = task.instruction || "";
+  if ($("task-audio")) $("task-audio").src = task.audioUrl || "";
+
+  audioChunks = [];
+  taskStartTime = Date.now();
+  startTaskTimer();
+}
+
+function startTaskTimer() {
+  if (taskTimerInterval) clearInterval(taskTimerInterval);
+  taskTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+    const min = String(Math.floor(elapsed / 60)).padStart(2, "0");
+    const sec = String(elapsed % 60).padStart(2, "0");
+    setAllById("task-timer", `Time: ${min}:${sec}`);
+  }, 1000);
+}
+
+window.safeExitTaskWorkspace = function () {
+  stopRecording();
+  clearInterval(taskTimerInterval);
+  forceShowDashboard();
+  refreshDashboardFromSheet();
+};
+
+window.submitAndLoadNextTask = async function () {
+  if (!currentTask || audioChunks.length === 0) return alert("Please record audio first");
+
+  const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+  const reader = new FileReader();
+  reader.readAsDataURL(audioBlob);
+  reader.onloadend = async () => {
+    const audioBase64 = reader.result.split(",")[1];
+    try {
+      const json = await callApi("submitAudioTask", {
+        taskId: currentTask.taskId,
+        durationSec: String(Math.floor((Date.now() - taskStartTime) / 1000)),
+        audioBase64
+      });
+      alert(`✅ Earned: $${Number(json.result?.earnings || 0).toFixed(2)}`);
+      await refreshDashboardFromSheet();
+      await assignAndRenderTask();
+    } catch (e) { alert("Submit failed: " + e.message); }
+  };
+};
+
+// Init
+onAuthStateChanged(window.firebaseAuth, async (user) => {
+  if (user) await refreshDashboardFromSheet();
+});
