@@ -428,46 +428,161 @@
     </div>
   </div>
 
-  <div id="active-contracts-view" class="view hidden p-6">
-    <div class="max-w-3xl mx-auto">
-      <h1 class="text-2xl font-semibold text-white">Active Contracts</h1>
-      <p class="text-white/70 mt-2">You must accept the contract below before you can start tasking.</p>
+  <!-- ============================= -->
+<!-- Active Contracts View (Better) -->
+<!-- ============================= -->
+<div id="active-contracts-view" class="view hidden p-6">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-semibold text-white">Active Contract</h1>
+        <p class="text-white/70 mt-2">
+          Accept the contract below to unlock tasking for this project.
+        </p>
+      </div>
 
-      <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <div class="text-white font-medium">General Tasking Contract (v1)</div>
-            <div class="text-white/60 text-sm mt-1">Covers: data privacy, task quality, and payout terms.</div>
+      <!-- Status -->
+      <span id="contract-status-pill"
+        class="self-start sm:self-auto text-xs px-3 py-1 rounded-full bg-white/10 text-white/80 border border-white/10">
+        Checking…
+      </span>
+    </div>
+
+    <!-- Project Summary Card -->
+    <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <div class="text-white font-semibold text-lg truncate" id="contract-project-name">
+            Project: Multistatic Comparison V3
           </div>
 
-          <span id="contract-status-pill" class="text-xs px-3 py-1 rounded-full bg-white/10 text-white/80">
-            Checking…
-          </span>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/20">
+              Language: Hindi (hi-IN)
+            </span>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/20">
+              Task Type: Text / Audio Review
+            </span>
+            <span class="text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-200 border border-amber-500/20">
+              Contract: General Tasking (v1)
+            </span>
+          </div>
+
+          <p class="text-white/60 text-sm mt-3 leading-6" id="contract-project-details">
+            This project requires consistent quality, correct language usage, and policy-compliant submissions.
+            Please read the policy carefully before accepting.
+          </p>
         </div>
 
-        <div class="mt-4 text-white/80 text-sm leading-6">
-          <ul class="list-disc pl-5 space-y-2">
-            <li>You will submit truthful work created by you.</li>
-            <li>You will not upload copyrighted or harmful content.</li>
-            <li>Earnings are calculated server-side and are final.</li>
-            <li>Violation may lead to contract termination.</li>
-          </ul>
+        <!-- Small icon/visual -->
+        <div class="hidden sm:block shrink-0">
+          <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white/70" viewBox="0 0 24 24" fill="none">
+              <path d="M7 7h10M7 11h10M7 15h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 3h9l3 3v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+                stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </div>
+      </div>
 
-        <div class="mt-6 flex gap-3">
-          <button id="btn-accept-contract"
-                  class="px-5 py-2 rounded-xl bg-amber-500 text-black font-semibold hover:bg-amber-400 transition">
-            Agree & Continue
-          </button>
+      <!-- Key bullets -->
+      <div class="mt-5 rounded-xl bg-black/20 border border-white/10 p-4">
+        <div class="text-white/80 text-sm font-medium mb-2">Quick Summary</div>
+        <ul class="text-white/70 text-sm leading-6 list-disc pl-5 space-y-1.5">
+          <li>You will submit original, truthful work created by you.</li>
+          <li>No copyrighted, harmful, or policy-violating content.</li>
+          <li>Earnings and payouts follow the platform’s rules.</li>
+          <li>Violations may lead to suspension or termination.</li>
+        </ul>
+      </div>
 
-          <button class="px-5 py-2 rounded-xl bg-white/10 text-white hover:bg-white/15 transition"
-                  onclick="window.navigateTo('dashboard-view'); return false;">
-            Back
-          </button>
-        </div>
+      <!-- Actions -->
+      <div class="mt-6 flex flex-col sm:flex-row gap-3">
+        <!-- READ button (opens policy) -->
+        <button id="btn-read-policy"
+          class="px-5 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/15 transition border border-white/10">
+          Read Policy
+        </button>
+
+        <!-- Proceed button (also opens policy, but emphasizes next step) -->
+        <button id="btn-proceed-policy"
+          class="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-semibold hover:bg-amber-400 transition">
+          Proceed
+        </button>
+
+        <button class="px-5 py-2.5 rounded-xl bg-white/5 text-white hover:bg-white/10 transition border border-white/10"
+          onclick="window.navigateTo('dashboard-view'); return false;">
+          Back
+        </button>
       </div>
     </div>
   </div>
+
+  <!-- ============================= -->
+  <!-- Policy Modal -->
+  <!-- ============================= -->
+  <div id="policy-modal"
+    class="hidden fixed inset-0 z-[9999] items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div id="policy-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+    <!-- Modal box -->
+    <div class="relative w-full max-w-3xl rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl">
+      <!-- Modal header -->
+      <div class="flex items-start justify-between gap-4 p-5 border-b border-white/10">
+        <div class="min-w-0">
+          <div class="text-white font-semibold text-lg truncate">
+            Policy & Contract Terms
+          </div>
+          <div class="text-white/60 text-sm mt-1">
+            Please read fully before accepting.
+          </div>
+        </div>
+
+        <button id="btn-close-policy"
+          class="shrink-0 px-3 py-1.5 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 transition">
+          Close
+        </button>
+      </div>
+
+      <!-- Modal content -->
+      <div class="p-5 max-h-[65vh] overflow-auto">
+        <div class="text-white/80 text-sm leading-6 space-y-4" id="policy-text">
+          <p class="text-white/90 font-medium">1) Data Privacy</p>
+          <ul class="list-disc pl-5 space-y-2 text-white/70">
+            <li>Do not share personal information of anyone (phone, address, IDs, etc.).</li>
+            <li>Do not upload private/confidential company or customer data.</li>
+            <li>Follow the project’s data handling rules at all times.</li>
+          </ul>
+
+          <p class="text-white/90 font-medium">2) Quality & Integrity</p>
+          <ul class="list-disc pl-5 space-y-2 text-white/70">
+            <li>Submit only your own work. No copying, automation, or fabricated outputs.</li>
+            <li>Follow language requirements (e.g., Hindi only, or Hindi + Roman as specified).</li>
+            <li>Maintain natural, clear, guideline-compliant responses.</li>
+          </ul>
+
+          <p class="text-white/90 font-medium">3) Prohibited Content</p>
+          <ul class="list-disc pl-5 space-y-2 text-white/70">
+            <li>No copyrighted material, hate, harassment, illegal instructions, or explicit harmful content.</li>
+            <li>No attempts to exploit the system or bypass platform restrictions.</li>
+          </ul>
+
+          <p class="text-white/90 font-medium">4) Payout & Enforcement</p>
+          <ul class="list-disc pl-5 space-y-2 text-white/70">
+            <li>Earnings are determined by platform rules and may be adjusted for quality issues.</li>
+            <li>Repeated violations may lead to warnings, removal from the project, or termination.</li>
+          </ul>
+
+          <div class="mt-4 rounded-xl bg-black/25 border border-white/10 p-4">
+            <p class="text-white/80 text-sm">
+              By clicking <span class="text-white font-semibold">Agree & Finish</span>, you confirm you have read and accept these terms.
+            </p>
+          </div>
+        </div>
+      </div>
 
 <div id="tasks-view" class="view hidden p-4 md:p-8"></div>
         
@@ -638,3 +753,4 @@
 
 </body>
 </html>
+
