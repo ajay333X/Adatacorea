@@ -272,3 +272,95 @@ window.saveProfile = function () {
   localStorage.setItem("displayName", nameInput.value.trim());
   alert("Profile updated");
 };
+
+// =============================
+// Active Contract: Policy Modal
+// =============================
+function initContractPolicyModal() {
+  const modal = document.getElementById("policy-modal");
+  const backdrop = document.getElementById("policy-backdrop");
+
+  const btnRead = document.getElementById("btn-read-policy");
+  const btnProceed = document.getElementById("btn-proceed-policy");
+  const btnClose = document.getElementById("btn-close-policy");
+  const btnBack = document.getElementById("btn-back-from-policy");
+
+  const btnAgree = document.getElementById("btn-agree-finish");
+  const btnDisagree = document.getElementById("btn-disagree");
+
+  const statusPill = document.getElementById("contract-status-pill");
+
+  // If this view isn't present on the page, safely exit (prevents errors)
+  if (!modal || !statusPill) return;
+
+  function openModal() {
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal() {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    document.body.style.overflow = "";
+  }
+
+  // Avoid double-binding if init runs multiple times
+  function bind(el, event, handler) {
+    if (!el) return;
+    el.removeEventListener(event, handler);
+    el.addEventListener(event, handler);
+  }
+
+  // Open
+  bind(btnRead, "click", openModal);
+  bind(btnProceed, "click", openModal);
+
+  // Close
+  bind(btnClose, "click", closeModal);
+  bind(btnBack, "click", closeModal);
+  bind(backdrop, "click", closeModal);
+
+  // ESC close
+  const escHandler = (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+  };
+  document.removeEventListener("keydown", escHandler);
+  document.addEventListener("keydown", escHandler);
+
+  // Agree
+  bind(btnAgree, "click", async () => {
+    try {
+      // ✅ Hook your real "accept contract" logic here:
+      // Example:
+      // await window.acceptContract?.("general_tasking_v1");
+
+      // UI feedback
+      statusPill.textContent = "Accepted ✅";
+      statusPill.className =
+        "text-xs px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/20";
+
+      closeModal();
+
+      // ✅ Navigate after accepting (change target)
+      // window.navigateTo("tasks-view");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to accept contract. Please try again.");
+    }
+  });
+
+  // Disagree
+  bind(btnDisagree, "click", () => {
+    statusPill.textContent = "Not accepted";
+    statusPill.className =
+      "text-xs px-3 py-1 rounded-full bg-red-500/15 text-red-200 border border-red-500/20";
+    closeModal();
+  });
+}
+
+// Run after DOM is ready (works even if script is in <head>)
+document.addEventListener("DOMContentLoaded", () => {
+  initContractPolicyModal();
+});
+
