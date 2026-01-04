@@ -1,6 +1,7 @@
 /* =========================================================
    UI + Navigation Logic (NO Firebase INIT HERE)
-   Uses db.js ONLY for data access
+   Uses db.js ONLY for data access 
+   Active contract logic on the buttion and how should it work but DB in the next js file 
 ========================================================= */
 
 import { getUserData } from "./db.js";
