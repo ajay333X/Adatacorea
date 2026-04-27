@@ -81,4 +81,424 @@ body { transition: background-color 2.5s ease, color 2.5s ease; }
     height: 100%;
     display: block;
     overflow: visible; /* Allows the glow to bleed out */
+    /* =========================================================
+   ADATACORE PROFESSIONAL POLISH LAYER
+   Paste this at the VERY BOTTOM of style.css
+   This keeps your existing theme but makes the UI more premium.
+========================================================= */
+
+:root {
+  --ac-bg: #f7f8ff;
+  --ac-surface: rgba(255, 255, 255, 0.82);
+  --ac-surface-strong: rgba(255, 255, 255, 0.94);
+  --ac-border: rgba(99, 102, 241, 0.16);
+  --ac-text: #101827;
+  --ac-muted: #64748b;
+  --ac-shadow: 0 24px 80px rgba(15, 23, 42, 0.11);
+}
+
+.dark {
+  --ac-bg: #070914;
+  --ac-surface: rgba(15, 23, 42, 0.72);
+  --ac-surface-strong: rgba(15, 23, 42, 0.9);
+  --ac-border: rgba(148, 163, 184, 0.15);
+  --ac-text: #f8fafc;
+  --ac-muted: #94a3b8;
+  --ac-shadow: 0 24px 90px rgba(0, 0, 0, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(124, 58, 237, 0.17), transparent 32rem),
+    radial-gradient(circle at 88% 0%, rgba(6, 182, 212, 0.13), transparent 30rem),
+    var(--ac-bg) !important;
+  color: var(--ac-text);
+  letter-spacing: -0.01em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at top, #000, transparent 72%);
+  z-index: 0;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ac-bg-orb {
+  position: fixed;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 999px;
+  filter: blur(50px);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ac-bg-orb-one {
+  top: -8rem;
+  left: 18rem;
+  background: #8b5cf6;
+}
+
+.ac-bg-orb-two {
+  right: -10rem;
+  bottom: 10rem;
+  background: #06b6d4;
+}
+
+/* Sidebar polish */
+#sidebar {
+  background: var(--ac-surface-strong) !important;
+  border-right: 1px solid var(--ac-border) !important;
+  box-shadow: 18px 0 70px rgba(2, 6, 23, 0.08);
+  backdrop-filter: blur(22px) saturate(140%);
+}
+
+.dark #sidebar {
+  box-shadow: 18px 0 70px rgba(0, 0, 0, 0.35);
+}
+
+#main-content {
+  min-height: 100vh;
+}
+
+#top-right-controls button,
+#three-dot-dropdown {
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 18px 55px rgba(2, 6, 23, 0.13) !important;
+}
+
+.logo-text {
+  letter-spacing: -0.055em;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.045em;
+}
+
+#landing-view h1,
+#welcome-username {
+  background: linear-gradient(90deg, #60a5fa, #a78bfa 45%, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+.svg-logo-container {
+  filter: drop-shadow(0 18px 35px rgba(124, 58, 237, 0.28));
+}
+
+/* Premium cards */
+.card-hover-animation,
+.auth-box,
+#dashboard-view .bg-white,
+#profile-view .bg-white,
+#earnings-view .bg-white,
+#payout-view .bg-white,
+#quality-view .bg-white,
+#active-contracts-view .bg-white,
+#tasks-view .bg-white {
+  background: var(--ac-surface) !important;
+  border: 1px solid var(--ac-border) !important;
+  box-shadow: var(--ac-shadow) !important;
+  backdrop-filter: blur(22px) saturate(145%);
+}
+
+.card-hover-animation {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease !important;
+}
+
+.card-hover-animation::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 20%, rgba(255, 255, 255, 0.22), transparent 80%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+
+.card-hover-animation:hover {
+  transform: translateY(-7px) scale(1.01) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  box-shadow: 0 28px 95px rgba(88, 28, 135, 0.22) !important;
+}
+
+.card-hover-animation:hover::after {
+  transform: translateX(120%);
+}
+
+/* Buttons */
+button[class*="bg-violet"],
+a[class*="bg-violet"] {
+  background-image: linear-gradient(135deg, #7c3aed, #2563eb 52%, #06b6d4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 18px 45px rgba(79, 70, 229, 0.28) !important;
+}
+
+button[class*="bg-violet"]:hover,
+a[class*="bg-violet"]:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+button,
+a {
+  transition: transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+
+button:active,
+a:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Sidebar active item */
+.nav-link {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem !important;
+}
+
+.nav-link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.18), rgba(6, 182, 212, 0.1));
+  transition: opacity 0.2s ease;
+}
+
+.nav-link:hover::before,
+.nav-link.ac-active::before {
+  opacity: 1;
+}
+
+.nav-link > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-link.ac-active {
+  outline: 1px solid rgba(139, 92, 246, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 35px rgba(88, 28, 135, 0.12);
+}
+
+/* Inputs */
+input,
+select,
+textarea {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+  border-radius: 14px !important;
+  outline: none !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background: rgba(15, 23, 42, 0.68) !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #f8fafc !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(124, 58, 237, 0.65) !important;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.14) !important;
+}
+
+/* Landing page */
+#landing-view {
+  min-height: 100vh !important;
+  background: transparent !important;
+  position: relative;
+}
+
+#landing-view > div {
+  max-width: 1050px;
+  padding: 2rem;
+}
+
+#landing-view p {
+  color: var(--ac-muted) !important;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#landing-view::after {
+  content: "Contributor portal • Audio AI tasks • Quality insights • Payout tracking";
+  display: inline-flex;
+  position: absolute;
+  left: 50%;
+  bottom: 3rem;
+  transform: translateX(-50%);
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--ac-border);
+  color: var(--ac-muted);
+  background: var(--ac-surface);
+  backdrop-filter: blur(18px);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#auth-view {
+  background: rgba(7, 9, 20, 0.72) !important;
+  backdrop-filter: blur(18px);
+}
+
+.auth-box {
+  border-radius: 2rem !important;
+}
+
+#auth-view input {
+  min-height: 46px;
+}
+
+/* Task workspace */
+#task-workspace-view .bg-gray-950,
+#task-workspace-view [class*="bg-gray-950"] {
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.24), transparent 26rem),
+    radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.18), transparent 24rem),
+    rgba(2, 6, 23, 0.96) !important;
+}
+
+#task-workspace-view .rounded-3xl {
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55) !important;
+}
+
+#recording-timer,
+.recording-timer {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Tables */
+table {
+  border-collapse: separate;
+  border-spacing: 0 0.55rem;
+}
+
+tbody tr {
+  background: var(--ac-surface);
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.06);
+}
+
+td,
+th {
+  padding: 0.9rem 1rem !important;
+}
+
+/* Toast notifications */
+#ac-toast-root {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  z-index: 100000;
+}
+
+.ac-toast {
+  width: min(360px, calc(100vw - 2rem));
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--ac-border);
+  background: var(--ac-surface-strong);
+  color: var(--ac-text);
+  box-shadow: var(--ac-shadow);
+  backdrop-filter: blur(20px) saturate(150%);
+  animation: acToastIn 0.25s ease both;
+}
+
+.ac-toast-title {
+  font-weight: 800;
+  font-size: 0.92rem;
+  margin-bottom: 0.15rem;
+}
+
+.ac-toast-msg {
+  color: var(--ac-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@keyframes acToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Mobile improvement */
+@media (max-width: 768px) {
+  #landing-view > div {
+    padding: 1rem;
+  }
+
+  #landing-view::after {
+    display: none;
+  }
+
+  .view {
+    padding: 1rem !important;
+  }
+
+  #top-right-controls {
+    top: 0.75rem !important;
+    right: 0.75rem !important;
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 12vw, 4rem) !important;
+  }
+}
+
+/* Reduce motion for users who prefer less animation */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 }
